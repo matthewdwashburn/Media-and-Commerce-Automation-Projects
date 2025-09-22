@@ -1,8 +1,8 @@
 # Media and Commerce Automation Projects
-The automation workflows I created for my digital media and ecommerce company.
+These are the automation workflows I created for my digital media and e-commerce company.
 
 # Amazon Seller Account Manager
-![workflow preview]([https://www.dropbox.com/scl/fi/dmlkjhj9n05enn4l8gg8r/Amazon-Seller-Account-Manager.png?raw=1](https://www.dropbox.com/scl/fi/dmlkjhj9n05enn4l8gg8r/Amazon-Seller-Account-Manager.png?rlkey=5tf20bkxfb662lf3wbqh5ddy8&st=lisgupml&dl=1))
+
 # Video Creator/Uploader
 
 # X/Reddit/Web Scraper
