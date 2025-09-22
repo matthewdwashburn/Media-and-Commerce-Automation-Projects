@@ -1,0 +1,1320 @@
+{
+  "name": "IG Scraper",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 31 2 *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1140,
+        100
+      ],
+      "id": "d6162228-f757-4a5c-b568-d43d12fd8e67",
+      "name": "Schedule Trigger5"
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code Node - Simple Instagram Post Parser\n// Extracts only: username, caption, image URL, post URL, and likes count\n\nconst inputData = $input.all();\nconst posts = [];\n\n// Process each item in the input data\nfor (const item of inputData) {\n  const data = item.json;\n  \n  // Handle both array and single object inputs\n  const postsArray = Array.isArray(data) ? data : [data];\n  \n  for (const post of postsArray) {\n    // Get all image URLs - prioritize the images array, fallback to displayUrl\n    let allImages = [];\n    \n    if (post.images && post.images.length > 0) {\n      // Use the images array if available (contains all images for carousels)\n      allImages = post.images;\n    } else if (post.displayUrl) {\n      // Fallback to single displayUrl for single image posts\n      allImages = [post.displayUrl];\n    }\n    \n    const parsedPost = {\n      username: post.ownerUsername,\n      caption: post.caption,\n      imageUrl: post.displayUrl, // Keep the main/first image\n      allImageUrls: allImages, // All images in the post\n      imageCount: allImages.length, // Number of images\n      postUrl: post.url,\n      likesCount: post.likesCount\n    };\n    \n    posts.push(parsedPost);\n  }\n}\n\n// Return the parsed posts as separate items\nreturn posts.map(post => ({ json: post }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -340,
+        100
+      ],
+      "id": "d4e23dbb-08cc-4baf-8818-a88513cafacd",
+      "name": "Parse",
+      "executeOnce": false,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{$json[\"imageUrl\"]}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1400,
+        200
+      ],
+      "id": "dca8b937-c12d-4ceb-8bfb-66b0c96df619",
+      "name": "Download Image",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/Users/matt/Desktop/Bruh/{{ $binary.data.fileName }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1560,
+        200
+      ],
+      "id": "9787a482-f3b4-44c3-b50f-b6b50afae9c8",
+      "name": "Read/Write Files from Disk",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": "={{ $prevNode.name === 'Split Images into Objects'}}"
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1200,
+        80
+      ],
+      "id": "f10d3e7a-855d-46e4-bae7-9b4263933909",
+      "name": "Loop Over Items",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code Node - Split Image URLs into Individual Items\nconst inputData = $items('Parse')[0].json;\nconst imageItems = [];\n\n// Since inputData is now the JSON object directly, no need to loop through items\nconst data = inputData;\n\n// Check if allImageUrls exists and is an array\nif (data.allImageUrls && Array.isArray(data.allImageUrls)) {\n  // Loop through each URL in allImageUrls\n  data.allImageUrls.forEach((imageUrl, index) => {\n    imageItems.push({\n      json: {\n        username: data.username,\n        postUrl: data.postUrl,\n        imageUrl: imageUrl,\n        imageIndex: index + 1,\n        totalImages: data.imageCount || data.allImageUrls.length,\n        // Generate a filename\n        filename: `${data.username}_image_${index + 1}.jpg`\n      }\n    });\n  });\n}\n\nreturn imageItems;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        80
+      ],
+      "id": "111e2470-91e7-430b-8979-c6ea53684ee5",
+      "name": "Split Images into Objects",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "path": "=/Users/matt/Desktop/Bruh/{{ $binary.data.fileName }}",
+        "binaryData": true
+      },
+      "type": "n8n-nodes-base.dropbox",
+      "typeVersion": 1,
+      "position": [
+        1720,
+        200
+      ],
+      "id": "8f3c04e8-b8f0-433b-89ef-06a67be683d5",
+      "name": "Dropbox1",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "maxTries": 5,
+      "alwaysOutputData": true,
+      "credentials": {
+        "dropboxOAuth2Api": {
+          "id": "RVDRZTOwXBAm4TSH",
+          "name": "Dropbox account 5"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.dropboxapi.com/2/sharing/create_shared_link_with_settings",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"path\": \"{{ $json.path_display }}\",\n  \"settings\": {\n    \"requested_visibility\": \"public\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1900,
+        200
+      ],
+      "id": "c814d9af-c829-469b-a8ec-dfc10e3e84f0",
+      "name": "Get URL",
+      "alwaysOutputData": true,
+      "credentials": {
+        "dropboxOAuth2Api": {
+          "id": "RVDRZTOwXBAm4TSH",
+          "name": "Dropbox account 5"
+        },
+        "oAuth2Api": {
+          "id": "qMxbUwvMnMn9REv7",
+          "name": "Dropbox credential"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{$json[\"imageUrl\"]}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -180,
+        80
+      ],
+      "id": "ef22674e-7ccd-43af-a3a4-38e6116890ed",
+      "name": "Download Image1",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/Users/matt/Desktop/First/{{ $binary.data.fileName }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        -20,
+        80
+      ],
+      "id": "b7bd0fb0-c840-41a8-b712-e4635c1aee47",
+      "name": "Read/Write Files from Disk1",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "command": "=ffmpeg -i \"/Users/matt/Desktop/First/{{ $binary.data.fileName }}\" -vf 'crop=in_w:in_h*0.5:0:in_h*0.07' \"/Users/matt/Desktop/First/{{ $binary.data.fileName.replace(/\\.[^.]+$/, '.png') }}\""
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        160,
+        80
+      ],
+      "id": "f84c909c-726a-4558-b191-81830a97b4a7",
+      "name": "Execute Command1",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "maxTries": 5,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "path": "=/Users/matt/Desktop/First/{{ $binary.data.fileName.replace(/\\.jpe?g$/i, '.png') }}",
+        "binaryData": true
+      },
+      "type": "n8n-nodes-base.dropbox",
+      "typeVersion": 1,
+      "position": [
+        500,
+        80
+      ],
+      "id": "4d669c7a-b6d4-4883-b743-84a39e2c6ba9",
+      "name": "Dropbox",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "dropboxOAuth2Api": {
+          "id": "RVDRZTOwXBAm4TSH",
+          "name": "Dropbox account 5"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// This will cause the node to output no data\nreturn [];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        80
+      ],
+      "id": "3d47918e-aab5-48db-8c6d-f69d04da86a3",
+      "name": "Destroy Input15",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const axios = require('axios');\n\nconst postData = $json;\nconst openaiKey = $env.OPENAI_API_KEY;\n\nif (postData.error) {\n  console.log(\"⏭️ Skipping GPT generation due to previous error\");\n  return [\n    {\n      json: {\n        caption: \"Error: Could not generate caption\",\n        reply: \"Error: Could not generate reply\",\n        error: true,\n        originalError: postData.errorMessage\n      }\n    }\n  ];\n}\n\n// Handle different input formats\nlet imageData = [];\n\n// Check if postData is an array (direct from Dropbox API)\nif (Array.isArray(postData)) {\n  imageData = postData;\n} \n// Check if postData has an array property\nelse if (postData.files && Array.isArray(postData.files)) {\n  imageData = postData.files;\n}\n// Check for imageUrls array (legacy format)\nelse if (postData.imageUrls && Array.isArray(postData.imageUrls)) {\n  imageData = postData.imageUrls.map(url => ({ url }));\n}\n// Single object format\nelse if (postData.url) {\n  imageData = [postData];\n}\n\nconsole.log(`🤖 Processing ${imageData.length} items from input data`);\n\n// Extract all valid image URLs from the carousel and convert Dropbox links to direct URLs\nconst validImages = imageData\n  .filter(item => {\n    const url = typeof item === 'string' ? item : item.url;\n    return url && !url.includes('placeholder') && url.includes('dropbox.com');\n  })\n  .map(item => {\n    const url = typeof item === 'string' ? item : item.url;\n    // Convert Dropbox share links to direct image URLs\n    if (url.includes('?dl=0')) {\n      return url.replace('?dl=0', '?raw=1');\n    }\n    if (url.includes('&dl=0')) {\n      return url.replace('&dl=0', '&raw=1');\n    }\n    return url;\n  });\n\nconsole.log(`📸 Found ${validImages.length} valid Dropbox image URLs`);\n\n// Log the first few URLs for debugging\nconsole.log(\"🔍 Sample converted URLs:\", validImages.slice(0, 2));\n\nif (validImages.length === 0) {\n  console.log(\"❌ No valid images found in carousel\");\n  return [\n    {\n      json: {\n        caption: \"Error: No valid images found\",\n        reply: \"Error: No valid images found\",\n        error: true,\n        errorMessage: \"No valid images in carousel\"\n      }\n    }\n  ];\n}\n\n// Test one URL first to see if it's accessible\nconsole.log(\"🧪 Testing image URL accessibility...\");\n\n// Create image inputs for GPT Vision\nconst imageInputs = validImages.map(url => ({\n  type: \"image_url\",\n  image_url: {\n    url: url,\n    detail: \"low\"\n  }\n}));\n\nconsole.log(`👁️ Created ${imageInputs.length} image inputs for GPT Vision`);\n\n// Messages for caption generation\nconst captionMessages = [\n  {\n    role: \"user\",\n    content: [\n      {\n        type: \"text\",\n        text: `You are a writer for a professional Instagram news page. You are given a set of images from a carousel post. Write a single, concise caption (under 250 characters) that will go on the first image. It should summarize the entire story of the carousel, and include the highlights of all textual information presented in the carousel. Use only information that is clearly visible in the images. Do not include opinions, outside context, emojis, em or en dashes, or hashtags. The tone should be natural, neutral, and professional like a social media news headline.`\n      },\n      ...imageInputs\n    ]\n  }\n];\n\n// Messages for reply generation\nconst replyMessages = [\n  {\n    role: \"user\",\n    content: [\n      {\n        type: \"text\",\n        text: `Look at this image carousel and reply as if you're a real person scrolling social media, not a bot. Your tone should be chill, observant, and down-to-earth, like someone casually commenting something thoughtful, lighthearted, or insightful without trying too hard. Don't repeat the fact. No emojis. No hashtags. No em dashes or en dashes. Keep it under 200 characters.`\n      },\n      ...imageInputs\n    ]\n  }\n];\n\ntry {\n  // Generate caption\n  console.log(\"📝 Generating caption...\");\n  const captionResponse = await axios.post(\n    \"https://api.openai.com/v1/chat/completions\",\n    {\n      model: \"gpt-4o\",\n      messages: captionMessages,\n      temperature: 0.7,\n      max_tokens: 200\n    },\n    {\n      headers: {\n        Authorization: `Bearer ${openaiKey}`,\n        \"Content-Type\": \"application/json\"\n      }\n    }\n  );\n\n  // Generate reply\n  console.log(\"💬 Generating reply...\");\n  const replyResponse = await axios.post(\n    \"https://api.openai.com/v1/chat/completions\",\n    {\n      model: \"gpt-4o\",\n      messages: replyMessages,\n      temperature: 0.8,\n      max_tokens: 150\n    },\n    {\n      headers: {\n        Authorization: `Bearer ${openaiKey}`,\n        \"Content-Type\": \"application/json\"\n      }\n    }\n  );\n\n  let caption = captionResponse.data.choices[0].message.content.trim();\n  let reply = replyResponse.data.choices[0].message.content.trim();\n\n  // Clean up quotes if present\n  if ((caption.startsWith('\"') && caption.endsWith('\"')) ||\n      (caption.startsWith(\"'\") && caption.endsWith(\"'\"))) {\n    caption = caption.slice(1, -1).trim();\n  }\n\n  if ((reply.startsWith('\"') && reply.endsWith('\"')) ||\n      (reply.startsWith(\"'\") && reply.endsWith(\"'\"))) {\n    reply = reply.slice(1, -1).trim();\n  }\n\n  console.log(`✅ Generated caption: \"${caption.substring(0, 50)}...\"`);\n  console.log(`✅ Generated reply: \"${reply}\"`);\n\n  return [\n    {\n      json: {\n        caption,\n        reply,\n        usedVision: true,\n        imagesProcessed: validImages.length,\n        model: \"gpt-4o\"\n      }\n    }\n  ];\n\n} catch (error) {\n  console.error(`❌ Error generating GPT content:`, error.message);\n  \n  // Log more details about the error\n  if (error.response) {\n    console.error(`📋 Response status: ${error.response.status}`);\n    console.error(`📋 Response data:`, JSON.stringify(error.response.data, null, 2));\n  }\n  \n  // If it's a 400 error, might be URL access issue - try with fewer images\n  if (error.response && error.response.status === 400 && validImages.length > 2) {\n    console.log(\"🔄 Retrying with first 2 images only...\");\n    \n    const limitedImageInputs = imageInputs.slice(0, 2);\n    \n    const retryMessages = [\n      {\n        role: \"user\",\n        content: [\n          {\n            type: \"text\",\n            text: `Look at these images from an Instagram carousel and write a caption that captures the overall story, mood, or theme. The caption should feel natural and authentic. Keep it engaging but not forced.`\n          },\n          ...limitedImageInputs\n        ]\n      }\n    ];\n    \n    try {\n      const retryResponse = await axios.post(\n        \"https://api.openai.com/v1/chat/completions\",\n        {\n          model: \"gpt-4o\",\n          messages: retryMessages,\n          temperature: 0.7,\n          max_tokens: 200\n        },\n        {\n          headers: {\n            Authorization: `Bearer ${openaiKey}`,\n            \"Content-Type\": \"application/json\"\n          }\n        }\n      );\n      \n      const caption = retryResponse.data.choices[0].message.content.trim();\n      \n      return [\n        {\n          json: {\n            caption,\n            reply: \"generated caption only due to image access issues\",\n            usedVision: true,\n            imagesProcessed: 2,\n            model: \"gpt-4o\",\n            note: \"Limited to first 2 images due to URL access issues\"\n          }\n        }\n      ];\n      \n    } catch (retryError) {\n      console.error(`❌ Retry also failed:`, retryError.message);\n    }\n  }\n  \n  return [\n    {\n      json: {\n        caption: \"sorry, my brain broke trying to write a caption 🤖💥\",\n        reply: \"sorry, my brain broke trying to think of a reply 🤖💥\",\n        error: true,\n        errorMessage: error.message,\n        debugInfo: error.response ? {\n          status: error.response.status,\n          data: error.response.data\n        } : null\n      }\n    }\n  ];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1420,
+        20
+      ],
+      "id": "75758a78-e4a8-4d36-925d-6f92f6a4bfea",
+      "name": "Chat Reply",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.dropboxapi.com/2/sharing/create_shared_link_with_settings",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"path\": \"/Users/matt/Desktop/First/{{ $node[\"Read/Write Files from Disk2\"].binary.data.fileName.replace(/\\.jpe?g$/i, '.png') }}\",\n  \"settings\": {\n    \"requested_visibility\": \"public\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        680,
+        80
+      ],
+      "id": "195f77b8-db36-4bc7-9e86-e24b499339d2",
+      "name": "Get Crop URL",
+      "alwaysOutputData": true,
+      "credentials": {
+        "dropboxOAuth2Api": {
+          "id": "RVDRZTOwXBAm4TSH",
+          "name": "Dropbox account 5"
+        },
+        "oAuth2Api": {
+          "id": "qMxbUwvMnMn9REv7",
+          "name": "Dropbox credential"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const axios = require('axios');\nconst gptData = $items('Chat Reply')[0].json;  // Updated node: gpt reply\nconst cropData = $items('Get Crop URL')[0].json;  // Updated node: get crop url\nconst templatedKey = $env.TEMPLATED_API_KEY;\n\nconsole.log(`🖼️ Generating Templated.io image...`);\n\nasync function waitForTemplateImage(id, apiKey) {\n  const maxAttempts = 10;\n  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));\n  \n  for (let attempt = 1; attempt <= maxAttempts; attempt++) {\n    console.log(`⌛ Waiting for image (attempt ${attempt})...`);\n    const statusRes = await axios.get(`https://api.templated.io/v1/render/${id}`, {\n      headers: { Authorization: `Bearer ${apiKey}` }\n    });\n    \n    if (statusRes.data.url) {\n      return statusRes.data.url;\n    }\n    await delay(2000); // wait 2 seconds\n  }\n  throw new Error(\"❌ Timeout: Template image rendering took too long.\");\n}\n\ntry {\n  // Using single image template since we no longer handle two images\n  const selectedTemplate = \"979e9b7b-7169-468e-90d9-7856afbd1e3e\";\n  \n  const layers = {\n    post: {\n      text: gptData.caption,\n      color_2: \"#FFFF00\"\n    },\n    reply: {\n      text: gptData.reply\n    },\n    image: {\n      image_url: cropData.url.replace('dl=0', 'dl=1')\n    }\n  };\n\n  const response = await axios.post(\n    \"https://api.templated.io/v1/render\",\n    {\n      template: selectedTemplate,\n      layers,\n      format: \"png\",\n      async: false\n    },\n    {\n      headers: {\n        Authorization: `Bearer ${templatedKey}`,\n        \"Content-Type\": \"application/json\"\n      }\n    }\n  );\n\n  let finalImageUrl;\n  if (response.data.url) {\n    finalImageUrl = response.data.url;\n    console.log(`✅ Templated image ready instantly: ${finalImageUrl}`);\n  } else if (response.data.id) {\n    finalImageUrl = await waitForTemplateImage(response.data.id, templatedKey);\n    console.log(`✅ Templated image ready after wait: ${finalImageUrl}`);\n  } else {\n    throw new Error(\"No image URL or template ID returned.\");\n  }\n\n  return [\n    {\n      json: {\n        generatedImageUrl: finalImageUrl,\n        templateId: response.data.id || 'instant',\n        usedVision: !!cropData.link && !cropData.link.includes('placeholder'),\n        success: true\n      }\n    }\n  ];\n} catch (error) {\n  console.error(\"❌ Error during template image generation:\", error.message);\n  return [\n    {\n      json: {\n        generatedImageUrl: null,\n        error: true,\n        errorMessage: error.message\n      }\n    }\n  ];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1580,
+        20
+      ],
+      "id": "74dfd10f-1a79-4873-a6fd-0e45fa393a6b",
+      "name": "Generate Template4",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "fileSelector": "=/Users/matt/Desktop/First/{{ $node[\"Read/Write Files from Disk1\"].binary.data.fileName.replace(/\\.jpe?g$/i, '.png') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        340,
+        80
+      ],
+      "id": "ffb9611a-7e43-45fc-9eb9-a470cf3270e8",
+      "name": "Read/Write Files from Disk2",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "content": "## IG Scraper\n",
+        "height": 500,
+        "width": 3700
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1220,
+        0
+      ],
+      "typeVersion": 1,
+      "id": "c6fdc2c2-45c7-4814-8062-7f25c143cd41",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "command": "rm -f /Users/matt/Desktop/Bruh/*\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        2100,
+        20
+      ],
+      "id": "78e09663-b63e-42ae-80a0-cb2a3675f573",
+      "name": "Execute Command8",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "command": "rm -f /Users/matt/Desktop/First/*\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        2260,
+        20
+      ],
+      "id": "e20a9883-906b-4b41-88a3-74dd870bc550",
+      "name": "Execute Command2",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -560,
+        100
+      ],
+      "id": "61510e62-40d8-4064-adfc-27c69f2a5b7a",
+      "name": "Loop Over Items3",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// This will cause the node to output no data\nreturn [];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2280,
+        220
+      ],
+      "id": "0ae9e990-8db1-4d75-a5b4-e1625df8d82b",
+      "name": "Destroy Input18",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 🔢 Set the token number you want (e.g., 1 to 16)\nconst tokenNumber = 1;\n\n// 🧩 Build the environment variable key\nconst envVarName = `APIFY_API_TOKEN_${tokenNumber}`;\n\n// 🔐 Access the token using $env\nconst tokenValue = $env[envVarName];\n\n// 🧾 Return the token value and info\nreturn [\n  {\n    json: {\n      envVarName,\n      tokenValue,\n    },\n  },\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -940,
+        100
+      ],
+      "id": "89c0ba54-2ab2-4d8b-abb4-928124b21b0b",
+      "name": "Get Env Variable"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.tokenValue }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"username\": [\"notcommonfacts\", \"daily_wtf_facts\", \"blowingfact\", \"keeponlearning.daily\", \"howhistorylooks\", \"explaining\", \"factsweird\", \"rap\", \"wasted\", \"complex\", \"wealth\", \"pubity\", \"thebusinesshacks\", \"meme.ig\"],\n  \"resultsLimit\": 10\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -760,
+        100
+      ],
+      "id": "45b72a13-5d77-48be-9ecf-341c5f91405b",
+      "name": "Instagram Scraper"
+    },
+    {
+      "parameters": {
+        "url": "={{$json[\"generatedImageUrl\"]}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1740,
+        20
+      ],
+      "id": "36775f2c-76b0-49c1-ae6b-7b93822e6651",
+      "name": "Download Image4",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/Users/matt/Desktop/IG_Images/{{ $binary.data.fileName }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1900,
+        20
+      ],
+      "id": "a61d78bc-5e97-4803-b6de-b8781819f377",
+      "name": "Read/Write Files from Disk7",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/Users/matt/Desktop/IG2/{{ $binary.data.fileName }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        180,
+        600
+      ],
+      "id": "635a9d97-83c4-43f1-9042-57e7ae744bbb",
+      "name": "Read/Write Files from Disk5",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.dropboxapi.com/2/sharing/create_shared_link_with_settings",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"path\": \"{{ $json.path_display }}\",\n  \"settings\": {\n    \"requested_visibility\": \"public\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        500,
+        600
+      ],
+      "id": "e66193fb-e243-4f07-b8a5-7fbe35ada9e3",
+      "name": "Get URL2",
+      "alwaysOutputData": true,
+      "credentials": {
+        "dropboxOAuth2Api": {
+          "id": "RVDRZTOwXBAm4TSH",
+          "name": "Dropbox account 5"
+        },
+        "oAuth2Api": {
+          "id": "qMxbUwvMnMn9REv7",
+          "name": "Dropbox credential"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -420,
+        600
+      ],
+      "id": "492ccd66-9c3b-4458-89cd-6f4192a08fa2",
+      "name": "Loop Over Items2",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const axios = require('axios');\n\nconst postData = $items('Get URL2')[0].json;\nconst openaiKey = $env.OPENAI_API_KEY;\n\nif (postData.error) {\n  console.log(\"⏭️ Skipping GPT generation due to previous error\");\n  return [\n    {\n      json: {\n        reply: \"Error: Could not generate reply\",\n        error: true,\n        originalError: postData.errorMessage\n      }\n    }\n  ];\n}\n\n// Handle different input formats to get a single image URL\nlet imageUrl = null;\n\n// Check if postData is a string (direct URL)\nif (typeof postData === 'string') {\n  imageUrl = postData;\n}\n// Check if postData has a url property\nelse if (postData.url) {\n  imageUrl = postData.url;\n}\n// Check if postData has an array and take the first item\nelse if (postData.files && Array.isArray(postData.files) && postData.files.length > 0) {\n  imageUrl = postData.files[0].url || postData.files[0];\n}\n// Check for imageUrls array (legacy format) and take first\nelse if (postData.imageUrls && Array.isArray(postData.imageUrls) && postData.imageUrls.length > 0) {\n  imageUrl = postData.imageUrls[0];\n}\n\nconsole.log(`🤖 Processing single Facebook post image`);\n\n// Validate and convert Dropbox URL if needed\nif (!imageUrl || imageUrl.includes('placeholder')) {\n  console.log(\"❌ No valid image URL found\");\n  return [\n    {\n      json: {\n        reply: \"Error: No valid image found\",\n        error: true,\n        errorMessage: \"No valid image URL provided\"\n      }\n    }\n  ];\n}\n\n// Convert Dropbox share links to direct image URLs if needed\nif (imageUrl.includes('dropbox.com')) {\n  if (imageUrl.includes('?dl=0')) {\n    imageUrl = imageUrl.replace('?dl=0', '?raw=1');\n  }\n  if (imageUrl.includes('&dl=0')) {\n    imageUrl = imageUrl.replace('&dl=0', '&raw=1');\n  }\n}\n\nconsole.log(`📸 Processing image URL: ${imageUrl.substring(0, 50)}...`);\n\n// Create image input for GPT Vision\nconst imageInput = {\n  type: \"image_url\",\n  image_url: {\n    url: imageUrl,\n    detail: \"low\"\n  }\n};\n\n// Messages for reply generation\nconst replyMessages = [\n  {\n    role: \"user\",\n    content: [\n      {\n        type: \"text\",\n        text: `Look at this Facebook post image and reply as if you're a real person scrolling social media, not a bot. Your tone should be chill, observant, and down-to-earth, like someone casually commenting something thoughtful, lighthearted, or insightful without trying too hard. Don't repeat the fact from the post. No emojis. No hashtags. No em dashes or en dashes. Keep it under 150 characters.`\n      },\n      imageInput\n    ]\n  }\n];\n\ntry {\n  // Generate reply\n  console.log(\"💬 Generating reply...\");\n  const replyResponse = await axios.post(\n    \"https://api.openai.com/v1/chat/completions\",\n    {\n      model: \"gpt-4o\",\n      messages: replyMessages,\n      temperature: 0.8,\n      max_tokens: 150\n    },\n    {\n      headers: {\n        Authorization: `Bearer ${openaiKey}`,\n        \"Content-Type\": \"application/json\"\n      }\n    }\n  );\n\n  let reply = replyResponse.data.choices[0].message.content.trim();\n\n  // Clean up quotes if present\n  if ((reply.startsWith('\"') && reply.endsWith('\"')) ||\n      (reply.startsWith(\"'\") && reply.endsWith(\"'\"))) {\n    reply = reply.slice(1, -1).trim();\n  }\n\n  console.log(`✅ Generated reply: \"${reply}\"`);\n\n  return [\n    {\n      json: {\n        reply,\n        usedVision: true,\n        model: \"gpt-4o\",\n        imageProcessed: imageUrl.substring(0, 100) + \"...\"\n      }\n    }\n  ];\n\n} catch (error) {\n  console.error(`❌ Error generating GPT reply:`, error.message);\n  \n  // Log more details about the error\n  if (error.response) {\n    console.error(`📋 Response status: ${error.response.status}`);\n    console.error(`📋 Response data:`, JSON.stringify(error.response.data, null, 2));\n  }\n  \n  return [\n    {\n      json: {\n        reply: \"sorry, my brain broke trying to think of a reply 🤖💥\",\n        error: true,\n        errorMessage: error.message,\n        debugInfo: error.response ? {\n          status: error.response.status,\n          data: error.response.data\n        } : null\n      }\n    }\n  ];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        600
+      ],
+      "id": "f48c9abd-b54b-4fcb-b642-78fff612e0ca",
+      "name": "Chat Reply3",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const axios = require('axios');\nconst gptData = $items('Chat Reply3')[0].json;  // Updated node: gpt reply\nconst cropData = $items('Get URL2')[0].json;  // Updated node: get crop url\nconst ratioData = $items('Aspect Ratio2')[0].json;  // Fixed: added $ prefix\nconst templatedKey = $env.TEMPLATED_API_KEY;\n\nconsole.log(`🖼️ Generating Templated.io image...`);\nconsole.log(`📐 Aspect ratio: ${ratioData.aspectRatio}`);\n\nasync function waitForTemplateImage(id, apiKey) {\n  const maxAttempts = 10;\n  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));\n  \n  for (let attempt = 1; attempt <= maxAttempts; attempt++) {\n    console.log(`⌛ Waiting for image (attempt ${attempt})...`);\n    const statusRes = await axios.get(`https://api.templated.io/v1/render/${id}`, {\n      headers: { Authorization: `Bearer ${apiKey}` }\n    });\n    \n    if (statusRes.data.url) {\n      return statusRes.data.url;\n    }\n    await delay(2000); // wait 2 seconds\n  }\n  throw new Error(\"❌ Timeout: Template image rendering took too long.\");\n}\n\ntry {\n  // Select template based on aspect ratio\n  const aspectRatio = ratioData.aspectRatio;\n  let selectedTemplate;\n  \n  if (aspectRatio <= 0.9) {\n    selectedTemplate = \"f7164bd0-3376-4d64-8563-95964913223d\";\n    console.log(`📱 Using portrait/square template (ratio: ${aspectRatio})`);\n  } else {\n    selectedTemplate = \"2d4237a3-b0cd-41c4-a436-8e8ce3875c4b\";\n    console.log(`🖥️ Using landscape template (ratio: ${aspectRatio})`);\n  }\n  \n  const layers = {\n    reply: {\n      text: gptData.reply\n    },\n    image: {\n      image_url: cropData.url.replace('dl=0', 'dl=1')\n    }\n  };\n  \n  const response = await axios.post(\n    \"https://api.templated.io/v1/render\",\n    {\n      template: selectedTemplate,\n      layers,\n      format: \"png\",\n      async: false\n    },\n    {\n      headers: {\n        Authorization: `Bearer ${templatedKey}`,\n        \"Content-Type\": \"application/json\"\n      }\n    }\n  );\n  \n  let finalImageUrl;\n  if (response.data.url) {\n    finalImageUrl = response.data.url;\n    console.log(`✅ Templated image ready instantly: ${finalImageUrl}`);\n  } else if (response.data.id) {\n    finalImageUrl = await waitForTemplateImage(response.data.id, templatedKey);\n    console.log(`✅ Templated image ready after wait: ${finalImageUrl}`);\n  } else {\n    throw new Error(\"No image URL or template ID returned.\");\n  }\n  \n  return [\n    {\n      json: {\n        generatedImageUrl: finalImageUrl,\n        templateId: response.data.id || 'instant',\n        selectedTemplate: selectedTemplate,\n        aspectRatio: aspectRatio,\n        usedVision: !!cropData.link && !cropData.link.includes('placeholder'),\n        success: true\n      }\n    }\n  ];\n} catch (error) {\n  console.error(\"❌ Error during template image generation:\", error.message);\n  return [\n    {\n      json: {\n        generatedImageUrl: null,\n        error: true,\n        errorMessage: error.message\n      }\n    }\n  ];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1180,
+        600
+      ],
+      "id": "5c6c69b8-47c8-44f3-98c1-8e58e7465505",
+      "name": "Generate Template2",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "command": "=ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 \"{{ $('Read/Write Files from Disk5').item.json.fileName }}\"\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        680,
+        600
+      ],
+      "id": "b4745949-05b7-4423-aa20-b4e02855f18c",
+      "name": "Execute Command5",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = $json[\"stdout\"];\nif (!output) {\n  throw new Error(\"No stdout output from FFprobe.\");\n}\n\nconst [widthStr, heightStr] = output.trim().split(',');\n\nconst width = parseInt(widthStr);\nconst height = parseInt(heightStr);\n\nif (isNaN(width) || isNaN(height)) {\n  throw new Error(\"Failed to parse image width and height.\");\n}\n\nreturn [\n  {\n    json: {\n      width,\n      height,\n      aspectRatio: width / height\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        600
+      ],
+      "id": "e0e68d97-eeda-4dd9-b7e9-a87afb8093e4",
+      "name": "Aspect Ratio2",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "content": "## IG Scraper 2\n",
+        "height": 340,
+        "width": 3120,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1220,
+        520
+      ],
+      "typeVersion": 1,
+      "id": "7f597776-e6d9-48a2-a5d5-7805d6767e39",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "command": "/opt/homebrew/Cellar/trash/0.9.2/bin/trash /Users/matt/Desktop/IG2/*\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1740,
+        600
+      ],
+      "id": "e88040fe-5266-447e-a0a9-d9231742f4f7",
+      "name": "Execute Command10",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 31 2 *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1160,
+        600
+      ],
+      "id": "900e131e-c1b1-4803-b02b-2d708d9c376a",
+      "name": "Schedule Trigger9"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.tokenValue }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"username\": [\"fact.philes\", \"howeverythingworks\", \"thishowthingswork\", \"how.everything.works\", \"facts\", \"fact\"],\n  \"resultsLimit\": 15\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -600,
+        600
+      ],
+      "id": "a393ec52-85d5-417c-8669-3f0f333c61a0",
+      "name": "Instagram Scraper1",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{$json[\"imageUrl\"]}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        600
+      ],
+      "id": "2133bb2f-526e-4467-9761-8efb1597fa98",
+      "name": "Download Image2",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 🔢 Set the token number you want (e.g., 1 to 16)\nconst tokenNumber = 3;\n\n// 🧩 Build the environment variable key\nconst envVarName = `APIFY_API_TOKEN_${tokenNumber}`;\n\n// 🔐 Access the token using $env\nconst tokenValue = $env[envVarName];\n\n// 🧾 Return the token value and info\nreturn [\n  {\n    json: {\n      envVarName,\n      tokenValue,\n    },\n  },\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -780,
+        600
+      ],
+      "id": "5929c7a0-b73c-41d6-8cc2-dcf188806645",
+      "name": "Get Env Variable1",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code Node - Simple Instagram Post Parser\n// Extracts only: username, caption, image URL, post URL, and likes count\n\nconst inputData = $input.all();\nconst posts = [];\n\n// Process each item in the input data\nfor (const item of inputData) {\n  const data = item.json;\n  \n  // Handle both array and single object inputs\n  const postsArray = Array.isArray(data) ? data : [data];\n  \n  for (const post of postsArray) {\n    // Get all image URLs - prioritize the images array, fallback to displayUrl\n    let allImages = [];\n    \n    if (post.images && post.images.length > 0) {\n      // Use the images array if available (contains all images for carousels)\n      allImages = post.images;\n    } else if (post.displayUrl) {\n      // Fallback to single displayUrl for single image posts\n      allImages = [post.displayUrl];\n    }\n    \n    const parsedPost = {\n      username: post.ownerUsername,\n      caption: post.caption,\n      imageUrl: post.displayUrl, // Keep the main/first image\n      allImageUrls: allImages, // All images in the post\n      imageCount: allImages.length, // Number of images\n      postUrl: post.url,\n      likesCount: post.likesCount\n    };\n    \n    posts.push(parsedPost);\n  }\n}\n\n// Return the parsed posts as separate items\nreturn posts.map(post => ({ json: post }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -180,
+        600
+      ],
+      "id": "7d5311a5-cfb1-44e1-aae1-b8de30b562d9",
+      "name": "Parse1",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{$json[\"generatedImageUrl\"]}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1360,
+        600
+      ],
+      "id": "9c15334d-5034-4702-871f-ae2f82746bbe",
+      "name": "Download Image3",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/Users/matt/Desktop/IG2_Images/{{ $binary.data.fileName }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1540,
+        600
+      ],
+      "id": "5f4d98b6-6fbe-4b1e-b20b-e5aa89cfc304",
+      "name": "Read/Write Files from Disk6",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "path": "=/Users/matt/Desktop/IG2/{{ $binary.data.fileName }}",
+        "binaryData": true
+      },
+      "type": "n8n-nodes-base.dropbox",
+      "typeVersion": 1,
+      "position": [
+        340,
+        600
+      ],
+      "id": "fd9646c0-d299-4bca-aa88-5b7dc0f7d547",
+      "name": "Upload a file",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "maxTries": 5,
+      "alwaysOutputData": true,
+      "credentials": {
+        "dropboxOAuth2Api": {
+          "id": "RVDRZTOwXBAm4TSH",
+          "name": "Dropbox account 5"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// This will cause the node to output no data\nreturn [];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -540,
+        300
+      ],
+      "id": "44839eb6-effa-4a56-affd-3c794a4d00bd",
+      "name": "Destroy Input",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "content": "# IG Scraper\n## Author: Matthew Washburn \n## Version: Fall 2025",
+        "width": 420,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        440,
+        -180
+      ],
+      "id": "faa0d1d8-a487-4425-bae6-c20207fc7836",
+      "name": "Sticky Note21"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger5": {
+      "main": [
+        [
+          {
+            "node": "Get Env Variable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse": {
+      "main": [
+        [
+          {
+            "node": "Download Image1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Image": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk": {
+      "main": [
+        [
+          {
+            "node": "Dropbox1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Chat Reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Images into Objects": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dropbox1": {
+      "main": [
+        [
+          {
+            "node": "Get URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get URL": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Image1": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk1": {
+      "main": [
+        [
+          {
+            "node": "Execute Command1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command1": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dropbox": {
+      "main": [
+        [
+          {
+            "node": "Get Crop URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Destroy Input15": {
+      "main": [
+        [
+          {
+            "node": "Split Images into Objects",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat Reply": {
+      "main": [
+        [
+          {
+            "node": "Generate Template4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Crop URL": {
+      "main": [
+        [
+          {
+            "node": "Destroy Input15",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Template4": {
+      "main": [
+        [
+          {
+            "node": "Download Image4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk2": {
+      "main": [
+        [
+          {
+            "node": "Dropbox",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command8": {
+      "main": [
+        [
+          {
+            "node": "Execute Command2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command2": {
+      "main": [
+        [
+          {
+            "node": "Destroy Input18",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items3": {
+      "main": [
+        [
+          {
+            "node": "Destroy Input",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Parse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Destroy Input18": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Env Variable": {
+      "main": [
+        [
+          {
+            "node": "Instagram Scraper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Instagram Scraper": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Image4": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk7": {
+      "main": [
+        [
+          {
+            "node": "Execute Command8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk5": {
+      "main": [
+        [
+          {
+            "node": "Upload a file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get URL2": {
+      "main": [
+        [
+          {
+            "node": "Execute Command5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items2": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Parse1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat Reply3": {
+      "main": [
+        [
+          {
+            "node": "Generate Template2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Template2": {
+      "main": [
+        [
+          {
+            "node": "Download Image3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command5": {
+      "main": [
+        [
+          {
+            "node": "Aspect Ratio2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aspect Ratio2": {
+      "main": [
+        [
+          {
+            "node": "Chat Reply3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command10": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger9": {
+      "main": [
+        [
+          {
+            "node": "Get Env Variable1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Instagram Scraper1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Image2": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Env Variable1": {
+      "main": [
+        [
+          {
+            "node": "Instagram Scraper1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse1": {
+      "main": [
+        [
+          {
+            "node": "Download Image2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Image3": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk6": {
+      "main": [
+        [
+          {
+            "node": "Execute Command10",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload a file": {
+      "main": [
+        [
+          {
+            "node": "Get URL2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Destroy Input": {
+      "main": [
+        [
+          {
+            "node": "Get Env Variable1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "477557cf-7ad0-4507-b550-744f7fa4f1b7",
+  "meta": {
+    "instanceId": "8337dd42d2dbf5575f0094a20a9bf5a3c8da69b0e6cb4a20afe8ce60c6079453"
+  },
+  "id": "CcS7D1eZDKMNo4ai",
+  "tags": []
+}

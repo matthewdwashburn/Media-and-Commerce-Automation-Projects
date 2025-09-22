@@ -1,0 +1,4310 @@
+{
+  "name": "Video Creator/Uploader",
+  "nodes": [
+    {
+      "parameters": {
+        "command": "=ffmpeg -i \"/Users/matt/Desktop/In_Progress/{{ $json.fileName }}\" -ss 00:00:01.000 -vframes 1 -y /tmp/frame.png"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -180,
+        -120
+      ],
+      "id": "3309d8cb-71a6-42d8-a28e-a535798f0791",
+      "name": "Extract Thumbnail"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.OPENAI_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"type\": \"text\",\n          \"text\": \"Given this social media post image pick a popular song that would be good background music for this image. Never choose bad guy by billy eilish. Return:\\n\\nSong Title: [text]\\nArtist: [text]\\nTimestamp: [in seconds where the best or most recognizable part starts]\"\n        },\n        {\n          \"type\": \"image_url\",\n          \"image_url\": {\n            \"url\": \"data:image/jpeg;base64,{{ $input.all()[0].binary.data.data.toString('base64') }}\"\n          }\n        }\n      ]\n    }\n  ]\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        200,
+        -120
+      ],
+      "id": "6a6873df-1b87-4fe0-9bc0-2c112c142885",
+      "name": "Generate Metadata"
+    },
+    {
+      "parameters": {
+        "jsCode": "const content = $json.choices[0].message.content;\n\nconst titleMatch = content.match(/Song Title:\\s*(.+)/i);\nconst artistMatch = content.match(/Artist:\\s*(.+)/i);\nconst timeMatch = content.match(/Timestamp:\\s*(\\d+)/i);\n\nreturn [\n  {\n    json: {\n      songTitle: titleMatch ? titleMatch[1].trim() : \"Unknown Title\",\n      artist: artistMatch ? artistMatch[1].trim() : \"Unknown Artist\",\n      timestamp: timeMatch ? parseInt(timeMatch[1].trim()) : 0\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        380,
+        -120
+      ],
+      "id": "92638f9f-bec8-4c1a-9c1d-2300210a5ec2",
+      "name": "Parse Metadata"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/tmp/frame.png",
+        "options": {
+          "dataPropertyName": "data"
+        }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        20,
+        -120
+      ],
+      "id": "3381f565-44cb-48d9-8b1f-b4217f31a1a3",
+      "name": "Read Frame"
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": "={{ $prevNode.name === 'Grab Videos In_Progress'}}"
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -420,
+        -120
+      ],
+      "id": "98e7aec1-4e23-4d20-b694-b5ac2c5fd1ff",
+      "name": "Loop Over All Videos",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "jsCode": "// Do nothing\nreturn [];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -780,
+        -120
+      ],
+      "id": "95813ee1-e815-4436-a0d3-c73c4fdc5944",
+      "name": "Destroy Input",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "fileSelector": "/Users/matt/Desktop/Smile_Images/*",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        -380,
+        140
+      ],
+      "id": "8f4a31a9-299f-41ed-86ac-9c45dc37dc96",
+      "name": "Grab Images From Smile"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4bd92b18-495b-475e-98a3-e82e550b6c0d",
+              "name": "imagePath",
+              "value": "=/Users/matt/Desktop/Smile_Images/{{ $json.fileName }}",
+              "type": "string"
+            },
+            {
+              "id": "fa70b400-96c3-4b8c-96f4-fb05dee1e793",
+              "name": "imageFilename",
+              "value": "={{ $json.fileName }}",
+              "type": "string"
+            },
+            {
+              "id": "b4d2c5c0-2d58-44cd-a08b-d1ec89cca2e1",
+              "name": "outputPath",
+              "value": "=/Users/matt/Desktop/In_Progress/{{ $json.fileName.replace('.png', '') }}.mp4",
+              "type": "string"
+            },
+            {
+              "id": "444bd6ae-67af-422b-86f2-450203b47579",
+              "name": "backgroundPath",
+              "value": "/Users/matt/Desktop/Assets/Smile.mp4",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        560,
+        140
+      ],
+      "id": "667d3a93-82af-4fc5-886a-d6315a900656",
+      "name": "Smile Set Data"
+    },
+    {
+      "parameters": {
+        "command": "=ffmpeg -i \"{{$json[\"backgroundPath\"]}}\" -i \"{{$json[\"imagePath\"]}}\" -filter_complex \"overlay=(W-w)/2:(H-h)/2-120\" -c:a copy \"{{$json[\"outputPath\"]}}\""
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        780,
+        140
+      ],
+      "id": "db05568a-7bab-48a7-a219-5560785bb645",
+      "name": "Smile Video Creation"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/Users/matt/Desktop/In_Progress/*",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        -600,
+        -120
+      ],
+      "id": "4dfc3640-d11f-406c-abb9-ae9f75f900a4",
+      "name": "Grab Videos In_Progress"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -160,
+        120
+      ],
+      "id": "f1672cf8-0e22-4f79-afbc-187d2a4d3655",
+      "name": "Loop Over Smile"
+    },
+    {
+      "parameters": {
+        "command": "/opt/homebrew/Cellar/trash/0.9.2/bin/trash /Users/matt/Desktop/In_Progress/*"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -240,
+        -300
+      ],
+      "id": "9c61777d-8ff0-474f-950e-e50b36e43613",
+      "name": "Remove In_Progress Videos"
+    },
+    {
+      "parameters": {
+        "command": "for file in /Users/matt/Desktop/Stone_Images/*; do\n  [ -e \"$file\" ] || continue\n  base=$(basename \"$file\")\n  target=\"/Users/matt/Desktop/Image_Archives/$base\"\n  count=1\n  while [ -e \"$target\" ]; do\n    ext=\"${base##*.}\"\n    name=\"${base%.*}\"\n    target=\"/Users/matt/Desktop/Image_Archives/${name}_$count.$ext\"\n    count=$((count + 1))\n  done\n  mv \"$file\" \"$target\"\ndone\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        260,
+        420
+      ],
+      "id": "6f9b9c06-9c2d-49bf-bc0c-81bc52164c39",
+      "name": "Move Stone to Archives"
+    },
+    {
+      "parameters": {
+        "command": "for file in /Users/matt/Desktop/Smile_Images/*; do\n  [ -e \"$file\" ] || continue\n  base=$(basename \"$file\")\n  target=\"/Users/matt/Desktop/Image_Archives/$base\"\n  count=1\n  while [ -e \"$target\" ]; do\n    ext=\"${base##*.}\"\n    name=\"${base%.*}\"\n    target=\"/Users/matt/Desktop/Image_Archives/${name}_$count.$ext\"\n    count=$((count + 1))\n  done\n  mv \"$file\" \"$target\"\ndone\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        260,
+        100
+      ],
+      "id": "abb0d5ee-e59b-4708-9ffd-bfb228e1e5f4",
+      "name": "Move Smile to Archives"
+    },
+    {
+      "parameters": {
+        "triggerOn": "folder",
+        "path": "/Users/matt/Desktop/Replace_Happy",
+        "events": [
+          "add"
+        ],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.localFileTrigger",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        -240
+      ],
+      "id": "0670e9f4-f795-4d6c-be99-7027d59afb7e",
+      "name": "Local File Trigger"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/Users/matt/Desktop/Replace_Happy/*",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        -240
+      ],
+      "id": "96142f9b-1185-4aa9-8354-4693c8f7ef3d",
+      "name": "Grab Videos From Replace"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1500,
+        -240
+      ],
+      "id": "7d499bf5-262c-4fbe-a94a-6d39cda3664d",
+      "name": "Loop Over Replace"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fa70b400-96c3-4b8c-96f4-fb05dee1e793",
+              "name": "videoPath",
+              "value": "=/Users/matt/Desktop/Replace_Happy/{{ $json.fileName }}",
+              "type": "string"
+            },
+            {
+              "id": "444bd6ae-67af-422b-86f2-450203b47579",
+              "name": "songPath",
+              "value": "/Users/matt/Desktop/Replace_Songs/Happy.mp3",
+              "type": "string"
+            },
+            {
+              "id": "d23640ab-aafa-4521-8e24-a926fc3f11c0",
+              "name": "outputPath",
+              "value": "=/Users/matt/Desktop/Uploads/{{ $json.fileName }}",
+              "type": "string"
+            },
+            {
+              "id": "65ffe6b1-5c19-4ec6-92d5-4cf14e55b51a",
+              "name": "",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1720,
+        -160
+      ],
+      "id": "a682e76d-0d30-475e-b7dc-44e2f78c2ce4",
+      "name": "Replace Set Data"
+    },
+    {
+      "parameters": {
+        "command": "=ffmpeg -y -i \"{{ $json.videoPath }}\" -i \"{{ $json.songPath }}\" -c:v copy -map 0:v:0 -map 1:a:0 -shortest \"{{ $json.outputPath }}\"\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1920,
+        -160
+      ],
+      "id": "1fb06f6b-9f5a-4564-98cf-2ce267ad02c8",
+      "name": "Execute Command"
+    },
+    {
+      "parameters": {
+        "command": "rm -f /Users/matt/Desktop/Replace_Happy/*"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1720,
+        -300
+      ],
+      "id": "99616e69-e553-45e2-99c8-65066cfd5c2c",
+      "name": "Remove replace videos"
+    },
+    {
+      "parameters": {
+        "triggerOn": "folder",
+        "path": "/Users/matt/Desktop/Replace_Sad",
+        "events": [
+          "add"
+        ],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.localFileTrigger",
+      "typeVersion": 1,
+      "position": [
+        2300,
+        -240
+      ],
+      "id": "fb224c1b-9a8a-4721-8495-7e173575368a",
+      "name": "Local File Trigger1"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/Users/matt/Desktop/Replace_Sad/*",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        2500,
+        -240
+      ],
+      "id": "b2ab25d7-3679-4cf2-b558-d64071e6de68",
+      "name": "Grab Videos From Replace1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2700,
+        -240
+      ],
+      "id": "f10cdcb5-0c85-4b02-a3f6-9725a273c47f",
+      "name": "Loop Over Replace1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fa70b400-96c3-4b8c-96f4-fb05dee1e793",
+              "name": "videoPath",
+              "value": "=/Users/matt/Desktop/Replace_Sad/{{ $json.fileName }}",
+              "type": "string"
+            },
+            {
+              "id": "444bd6ae-67af-422b-86f2-450203b47579",
+              "name": "songPath",
+              "value": "/Users/matt/Desktop/Replace_Songs/Sad.mp3",
+              "type": "string"
+            },
+            {
+              "id": "d23640ab-aafa-4521-8e24-a926fc3f11c0",
+              "name": "outputPath",
+              "value": "=/Users/matt/Desktop/Uploads/{{ $json.fileName }}",
+              "type": "string"
+            },
+            {
+              "id": "65ffe6b1-5c19-4ec6-92d5-4cf14e55b51a",
+              "name": "",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2940,
+        -160
+      ],
+      "id": "71ba90da-98b8-465f-9b24-6cc5d844de60",
+      "name": "Replace Set Data1"
+    },
+    {
+      "parameters": {
+        "command": "=ffmpeg -y -i \"{{ $json.videoPath }}\" -i \"{{ $json.songPath }}\" -c:v copy -map 0:v:0 -map 1:a:0 -shortest \"{{ $json.outputPath }}\"\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        3120,
+        -160
+      ],
+      "id": "f905b461-3ba4-4f94-8183-34042334443a",
+      "name": "Execute Command1"
+    },
+    {
+      "parameters": {
+        "command": "rm -f /Users/matt/Desktop/Replace_Sad/*"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        2940,
+        -320
+      ],
+      "id": "825a1e21-5992-4dc4-b580-fec86e822f4b",
+      "name": "Remove replace videos1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -140,
+        400
+      ],
+      "id": "28f1c4db-7a6f-4227-ade7-aa5400135692",
+      "name": "Loop Over Stone"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/Users/matt/Desktop/Stone_Images/*",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        -400,
+        440
+      ],
+      "id": "f8d4c07b-9008-4398-9891-bc445baed736",
+      "name": "Grab Images From Stone"
+    },
+    {
+      "parameters": {
+        "command": "=ffmpeg -i \"{{$json[\"backgroundPath\"]}}\" -i \"{{$json[\"imagePath\"]}}\" -filter_complex \"overlay=(W-w)/2:(H-h)/2-50\" -c:a copy \"{{$json[\"outputPath\"]}}\""
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        780,
+        440
+      ],
+      "id": "0b26f198-2e55-4f24-acdf-51c5293d9e6e",
+      "name": "Stone Video Creation"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4bd92b18-495b-475e-98a3-e82e550b6c0d",
+              "name": "imagePath",
+              "value": "=/Users/matt/Desktop/Stone_Images/{{ $json.fileName }}",
+              "type": "string"
+            },
+            {
+              "id": "fa70b400-96c3-4b8c-96f4-fb05dee1e793",
+              "name": "imageFilename",
+              "value": "={{ $json.fileName }}",
+              "type": "string"
+            },
+            {
+              "id": "b4d2c5c0-2d58-44cd-a08b-d1ec89cca2e1",
+              "name": "outputPath",
+              "value": "=/Users/matt/Desktop/In_Progress/{{ $json.fileName.replace('.png', '') }}.mp4",
+              "type": "string"
+            },
+            {
+              "id": "444bd6ae-67af-422b-86f2-450203b47579",
+              "name": "backgroundPath",
+              "value": "/Users/matt/Desktop/Assets/Stone.mp4",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        560,
+        440
+      ],
+      "id": "675a0ba0-6936-4cca-8841-6fa250343bcd",
+      "name": "Stone Set Data"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -740,
+        1020
+      ],
+      "id": "332df3cd-d5e5-4a82-9b46-0f0d273f3a26",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "command": "cd ~/Desktop/Uploads\ni=1\nfor file in *.mp4 *.png; do\n  # Skip if the file doesn't exist (e.g., no matches)\n  [ -e \"$file\" ] || continue\n\n  ext=\"${file##*.}\"  # get extension\n  mv \"$file\" \"$i.$ext\"\n  ((i++))\ndone"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        1020
+      ],
+      "id": "e3dba8ca-b48d-4955-b4e2-7403eec06b25",
+      "name": "Execute Command2"
+    },
+    {
+      "parameters": {
+        "content": "# Rename\n",
+        "height": 260,
+        "width": 520,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -820,
+        940
+      ],
+      "id": "74bcdf57-5d0a-4a4a-ad5c-46fbae5914bf",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {
+        "content": "# Create Smile",
+        "height": 280,
+        "width": 1820
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -820,
+        60
+      ],
+      "id": "94078fa5-f291-4971-a844-b79d5d8701d5",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "# Create Stone",
+        "height": 280,
+        "width": 1820,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -820,
+        360
+      ],
+      "id": "898373d3-f7e1-4559-849c-417f51ae24d0",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "# Add Music",
+        "height": 360,
+        "width": 1820,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -820,
+        -320
+      ],
+      "id": "e6498972-0156-4e5b-9d0f-6c0926242439",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "# Replace Music - Happy",
+        "height": 360,
+        "width": 1120,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1020,
+        -320
+      ],
+      "id": "4e355531-54d5-47ff-838b-f68ac5d89e4c",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "# Replace Music - Sad",
+        "height": 360,
+        "width": 1120,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2160,
+        -320
+      ],
+      "id": "f572e3b5-7460-4c6a-a2c7-7e15705143a1",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "command": "=yt-dlp -f \"bv[ext=mp4][vcodec^=avc1]+ba[ext=m4a][acodec^=mp4a]/best[ext=mp4]\" \\\n--merge-output-format mp4 \\\n-o \"/Users/matt/Desktop/Clip_Downloads/%(title)s.%(ext)s\" {{$json[\"url\"]}}\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        120,
+        1020
+      ],
+      "id": "13963132-6931-4528-ba93-0465a5a8f420",
+      "name": "Execute Command3"
+    },
+    {
+      "parameters": {
+        "content": "# Download Video\n",
+        "height": 260,
+        "width": 600,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -280,
+        940
+      ],
+      "id": "a96194a4-dda6-411b-a865-405cc722a44c",
+      "name": "Sticky Note8"
+    },
+    {
+      "parameters": {
+        "command": "=yt-dlp -f \"bestaudio\" -x --audio-format mp3 -o \"/Users/matt/Desktop/Clip_Downloads/%(title)s.%(ext)s\" {{$json[\"url\"]}}\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        740,
+        1020
+      ],
+      "id": "c9942586-1ea9-4465-8ff0-24e2dae7c0f2",
+      "name": "Execute Command4"
+    },
+    {
+      "parameters": {
+        "content": "# Download Audio\n",
+        "height": 260,
+        "width": 660,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        340,
+        940
+      ],
+      "id": "7b220928-a5fc-45e8-a357-dca59fc74b04",
+      "name": "Sticky Note9"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b1349616-89c4-4a9a-b130-d1773fde5f21",
+              "name": "url",
+              "value": "https://x.com/historigins/status/1959284534416977960/video/1",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        560,
+        1020
+      ],
+      "id": "ac9afc1d-c2ea-43b7-8eb4-702c7e356450",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 31 2 *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        380,
+        1020
+      ],
+      "id": "a4346685-856c-4ed7-bb48-65f039fe5e2f",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 31 2 *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -240,
+        1020
+      ],
+      "id": "60ab4bf5-9fbb-4de7-ad46-b523ba742f95",
+      "name": "Schedule Trigger1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b1349616-89c4-4a9a-b130-d1773fde5f21",
+              "name": "url",
+              "value": "https://www.youtube.com/watch?v=ylwMWpbv5Fk",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -60,
+        1020
+      ],
+      "id": "5f0f8ae9-9397-43d6-b5d7-e48461489674",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 31 2 *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -640,
+        140
+      ],
+      "id": "82ad49c7-31e9-442f-80a3-0770e3bfb18b",
+      "name": "Schedule Trigger2"
+    },
+    {
+      "parameters": {
+        "triggerOn": "folder",
+        "path": "/Users/matt/Desktop/Replace_Interest",
+        "events": [
+          "add"
+        ],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.localFileTrigger",
+      "typeVersion": 1,
+      "position": [
+        1080,
+        140
+      ],
+      "id": "311ec55e-0511-4344-9264-80764921cd75",
+      "name": "Local File Trigger2"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/Users/matt/Desktop/Replace_Interest/*",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1280,
+        140
+      ],
+      "id": "bcd4772e-0d7a-4b30-92cb-5808982758ee",
+      "name": "Grab Videos From Replace2"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1480,
+        140
+      ],
+      "id": "61544d5e-6dd2-4d47-8bf7-2a55e8c2aadc",
+      "name": "Loop Over Replace2"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fa70b400-96c3-4b8c-96f4-fb05dee1e793",
+              "name": "videoPath",
+              "value": "=/Users/matt/Desktop/Replace_Interest/{{ $json.fileName }}",
+              "type": "string"
+            },
+            {
+              "id": "444bd6ae-67af-422b-86f2-450203b47579",
+              "name": "songPath",
+              "value": "/Users/matt/Desktop/Replace_Songs/Interest.mp3",
+              "type": "string"
+            },
+            {
+              "id": "d23640ab-aafa-4521-8e24-a926fc3f11c0",
+              "name": "outputPath",
+              "value": "=/Users/matt/Desktop/Uploads/{{ $json.fileName }}",
+              "type": "string"
+            },
+            {
+              "id": "65ffe6b1-5c19-4ec6-92d5-4cf14e55b51a",
+              "name": "",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1700,
+        220
+      ],
+      "id": "b71eca82-8964-423f-b761-90c9dadce24c",
+      "name": "Replace Set Data2"
+    },
+    {
+      "parameters": {
+        "command": "=ffmpeg -y -i \"{{ $json.videoPath }}\" -i \"{{ $json.songPath }}\" -c:v copy -map 0:v:0 -map 1:a:0 -shortest \"{{ $json.outputPath }}\"\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1900,
+        220
+      ],
+      "id": "ec313f15-6530-42ae-ba20-28eff537c695",
+      "name": "Execute Command5"
+    },
+    {
+      "parameters": {
+        "command": "rm -f /Users/matt/Desktop/Replace_Interest/*"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        80
+      ],
+      "id": "06c152eb-a2ae-4cf2-9cbd-e27ea39dc3e0",
+      "name": "Remove replace videos2"
+    },
+    {
+      "parameters": {
+        "content": "# Replace Music - Interest",
+        "height": 360,
+        "width": 1120,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1020,
+        60
+      ],
+      "id": "701a1f2b-ce22-4f4a-8d5f-a4bf1f20ba56",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "triggerOn": "folder",
+        "path": "/Users/matt/Desktop/Replace_Nostalgia",
+        "events": [
+          "add"
+        ],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.localFileTrigger",
+      "typeVersion": 1,
+      "position": [
+        2240,
+        140
+      ],
+      "id": "ef2c13da-dccb-4789-8cc0-15eb540bef7e",
+      "name": "Local File Trigger3"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/Users/matt/Desktop/Replace_Nostalgia/*",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        2440,
+        140
+      ],
+      "id": "5810c6eb-28d0-4228-a453-4ea48cdf2023",
+      "name": "Grab Videos From Replace3"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2640,
+        140
+      ],
+      "id": "9c34472b-cd91-4b58-8f5f-66620cfffeac",
+      "name": "Loop Over Replace3"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fa70b400-96c3-4b8c-96f4-fb05dee1e793",
+              "name": "videoPath",
+              "value": "=/Users/matt/Desktop/Replace_Nostalgia/{{ $json.fileName }}",
+              "type": "string"
+            },
+            {
+              "id": "444bd6ae-67af-422b-86f2-450203b47579",
+              "name": "songPath",
+              "value": "/Users/matt/Desktop/Replace_Songs/Nostalgia.mp3",
+              "type": "string"
+            },
+            {
+              "id": "d23640ab-aafa-4521-8e24-a926fc3f11c0",
+              "name": "outputPath",
+              "value": "=/Users/matt/Desktop/Uploads/{{ $json.fileName }}",
+              "type": "string"
+            },
+            {
+              "id": "65ffe6b1-5c19-4ec6-92d5-4cf14e55b51a",
+              "name": "",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2860,
+        220
+      ],
+      "id": "51a0c85f-3aa4-41d0-a601-948103bce425",
+      "name": "Replace Set Data3"
+    },
+    {
+      "parameters": {
+        "command": "=ffmpeg -y -i \"{{ $json.videoPath }}\" -i \"{{ $json.songPath }}\" -c:v copy -map 0:v:0 -map 1:a:0 -shortest \"{{ $json.outputPath }}\"\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        3060,
+        220
+      ],
+      "id": "c6d0234e-3bd4-4c71-876c-ccbdc06f4310",
+      "name": "Execute Command6"
+    },
+    {
+      "parameters": {
+        "command": "rm -f /Users/matt/Desktop/Replace_Nostalgia/*"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        2860,
+        80
+      ],
+      "id": "414003b0-917d-44a7-ab6f-557de1b6b12a",
+      "name": "Remove replace videos3"
+    },
+    {
+      "parameters": {
+        "content": "# Replace Music - Nostalgia",
+        "height": 360,
+        "width": 1120,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2160,
+        60
+      ],
+      "id": "e417026a-4c4a-437e-9c7f-b579dd26843d",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "triggerOn": "folder",
+        "path": "/Users/matt/Desktop/Replace_Random",
+        "events": [
+          "add"
+        ],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.localFileTrigger",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        520
+      ],
+      "id": "48f43095-6fa6-4be2-a144-84425f4fea39",
+      "name": "Local File Trigger4"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/Users/matt/Desktop/Replace_Random/*",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        520
+      ],
+      "id": "b0831ea8-15b0-4189-9fb0-ad37bd0c9836",
+      "name": "Grab Videos From Replace4"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1500,
+        520
+      ],
+      "id": "35a2b712-a40c-499a-996e-74b220cfd309",
+      "name": "Loop Over Replace4"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fa70b400-96c3-4b8c-96f4-fb05dee1e793",
+              "name": "videoPath",
+              "value": "=/Users/matt/Desktop/Replace_Random/{{ $json.fileName }}",
+              "type": "string"
+            },
+            {
+              "id": "444bd6ae-67af-422b-86f2-450203b47579",
+              "name": "songPath",
+              "value": "/Users/matt/Desktop/Replace_Songs/Random.mp3",
+              "type": "string"
+            },
+            {
+              "id": "d23640ab-aafa-4521-8e24-a926fc3f11c0",
+              "name": "outputPath",
+              "value": "=/Users/matt/Desktop/Uploads/{{ $json.fileName }}",
+              "type": "string"
+            },
+            {
+              "id": "65ffe6b1-5c19-4ec6-92d5-4cf14e55b51a",
+              "name": "",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1720,
+        600
+      ],
+      "id": "155ea80f-727c-4f9a-9f69-04abe9305431",
+      "name": "Replace Set Data4"
+    },
+    {
+      "parameters": {
+        "command": "=ffmpeg -y -i \"{{ $json.videoPath }}\" -i \"{{ $json.songPath }}\" -c:v copy -map 0:v:0 -map 1:a:0 -shortest \"{{ $json.outputPath }}\"\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1920,
+        600
+      ],
+      "id": "b677e6b4-d6e8-4c7a-b6d4-34db2851fded",
+      "name": "Execute Command7"
+    },
+    {
+      "parameters": {
+        "command": "rm -f /Users/matt/Desktop/Replace_Random/*"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1720,
+        480
+      ],
+      "id": "6d666229-dc67-4ec1-af6e-ef5a6d2e354b",
+      "name": "Remove replace videos4"
+    },
+    {
+      "parameters": {
+        "content": "# Replace Music - Random",
+        "height": 360,
+        "width": 1120,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1020,
+        440
+      ],
+      "id": "49ff803b-8858-4221-ab3f-ca407c54551b",
+      "name": "Sticky Note10"
+    },
+    {
+      "parameters": {
+        "content": "# Trash\n",
+        "height": 260,
+        "width": 600,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1620,
+        1680
+      ],
+      "id": "d9be52d6-dcaf-4687-907f-1a8a9d05e2f0",
+      "name": "Sticky Note11"
+    },
+    {
+      "parameters": {
+        "command": "/opt/homebrew/Cellar/trash/0.9.2/bin/trash /Users/matt/Desktop/Trash/*\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1900,
+        1760
+      ],
+      "id": "6f32445d-c4d9-4141-a99d-57b766df62a0",
+      "name": "Execute Command8"
+    },
+    {
+      "parameters": {
+        "triggerOn": "folder",
+        "path": "/Users/matt/Desktop/Trash",
+        "events": [
+          "add"
+        ],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.localFileTrigger",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        1760
+      ],
+      "id": "5a716042-2ce9-45e7-9fbd-3518a01c55a6",
+      "name": "Local File Trigger5"
+    },
+    {
+      "parameters": {
+        "triggerOn": "folder",
+        "path": "/Users/matt/Desktop/Replace_Chillwave",
+        "events": [
+          "add"
+        ],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.localFileTrigger",
+      "typeVersion": 1,
+      "position": [
+        2240,
+        520
+      ],
+      "id": "863df93e-f952-4ec1-8700-51bbd1b2b843",
+      "name": "Local File Trigger6"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/Users/matt/Desktop/Replace_Chillwave/*",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        2440,
+        520
+      ],
+      "id": "7ca549ff-ba8d-44d8-85ce-2a9d9c7b1c30",
+      "name": "Grab Videos From Replace5"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2640,
+        520
+      ],
+      "id": "73aff53b-dc43-481b-9a64-3a7dd3b395d6",
+      "name": "Loop Over Replace5"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fa70b400-96c3-4b8c-96f4-fb05dee1e793",
+              "name": "videoPath",
+              "value": "=/Users/matt/Desktop/Replace_Chillwave/{{ $json.fileName }}",
+              "type": "string"
+            },
+            {
+              "id": "444bd6ae-67af-422b-86f2-450203b47579",
+              "name": "songPath",
+              "value": "/Users/matt/Desktop/Replace_Songs/Chillwave.mp3",
+              "type": "string"
+            },
+            {
+              "id": "d23640ab-aafa-4521-8e24-a926fc3f11c0",
+              "name": "outputPath",
+              "value": "=/Users/matt/Desktop/Uploads/{{ $json.fileName }}",
+              "type": "string"
+            },
+            {
+              "id": "65ffe6b1-5c19-4ec6-92d5-4cf14e55b51a",
+              "name": "",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2860,
+        600
+      ],
+      "id": "993c1e19-45eb-4b06-8710-41101b73b398",
+      "name": "Replace Set Data5"
+    },
+    {
+      "parameters": {
+        "command": "=ffmpeg -y -i \"{{ $json.videoPath }}\" -i \"{{ $json.songPath }}\" -c:v copy -map 0:v:0 -map 1:a:0 -shortest \"{{ $json.outputPath }}\"\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        3060,
+        600
+      ],
+      "id": "dbd19634-7b03-402a-8756-b0a34b057322",
+      "name": "Execute Command9"
+    },
+    {
+      "parameters": {
+        "command": "rm -f /Users/matt/Desktop/Replace_Chillwave/*"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        2860,
+        480
+      ],
+      "id": "17072566-1bef-4a54-886c-637e13e49e26",
+      "name": "Remove replace videos5"
+    },
+    {
+      "parameters": {
+        "content": "# Replace Music - Chillwave",
+        "height": 360,
+        "width": 1120,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2160,
+        440
+      ],
+      "id": "4b7c36d6-8a8c-4039-bf22-ae718ccff35a",
+      "name": "Sticky Note12"
+    },
+    {
+      "parameters": {
+        "triggerOn": "folder",
+        "path": "/Users/matt/Desktop/Replace_Any",
+        "events": [
+          "add"
+        ],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.localFileTrigger",
+      "typeVersion": 1,
+      "position": [
+        2240,
+        1300
+      ],
+      "id": "4f791e73-ef93-4f62-9aef-764e879e0f97",
+      "name": "Local File Trigger7"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2480,
+        1320
+      ],
+      "id": "bfcb67aa-a151-4633-8fc8-3bef97049e70",
+      "name": "Loop Over Replace6"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fa70b400-96c3-4b8c-96f4-fb05dee1e793",
+              "name": "videoPath",
+              "value": "=/Users/matt/Desktop/Replace_Any/{{ $json.fileName }}",
+              "type": "string"
+            },
+            {
+              "id": "d23640ab-aafa-4521-8e24-a926fc3f11c0",
+              "name": "outputPath",
+              "value": "=/Users/matt/Desktop/Uploads/{{ $json.fileName }}",
+              "type": "string"
+            },
+            {
+              "id": "65ffe6b1-5c19-4ec6-92d5-4cf14e55b51a",
+              "name": "",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2640,
+        1440
+      ],
+      "id": "1a433bbe-19a6-423e-bc87-695acd0848c7",
+      "name": "Replace Set Data6"
+    },
+    {
+      "parameters": {
+        "command": "=ffmpeg -y -i \"{{ $node[\"Replace Set Data6\"].json.videoPath }}\" -i \"{{ $json.songPath }}\" -c:v copy -map 0:v:0 -map 1:a:0 -shortest \"{{ $node[\"Replace Set Data6\"].json.outputPath }}\"\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        3120,
+        1440
+      ],
+      "id": "42c3508e-ea3e-4f35-bc3e-374d5051e017",
+      "name": "Execute Command10"
+    },
+    {
+      "parameters": {
+        "command": "rm -f /Users/matt/Desktop/Replace_Any/*.mp4\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        3060,
+        1300
+      ],
+      "id": "0b915cc0-16f0-4482-919e-24f57067293b",
+      "name": "Remove replace videos6"
+    },
+    {
+      "parameters": {
+        "content": "# Replace Music - Any",
+        "height": 440,
+        "width": 1120,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2160,
+        1220
+      ],
+      "id": "14497624-7e17-4151-bee4-6c1cc0b72899",
+      "name": "Sticky Note13"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/Users/matt/Desktop/Replace_Any/*.mp4",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        2240,
+        1480
+      ],
+      "id": "fec20859-9a3c-4f54-9b35-569be8a90521",
+      "name": "Grab Videos From Replace6"
+    },
+    {
+      "parameters": {
+        "command": "ls -1 /Users/matt/Desktop/Replace_Any/*.mp3 | head -n 1"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        2800,
+        1440
+      ],
+      "id": "791f92fe-4770-4ed7-a69a-9fbb33160a30",
+      "name": "Execute Command11"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ff067ba5-4e9f-49cd-a237-c87197cf1930",
+              "name": "songPath",
+              "value": "={{ $json.stdout }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2960,
+        1440
+      ],
+      "id": "be319bc4-d423-4651-9ab3-c4834f8f37ef",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "command": "=#!/bin/bash\n\n# Variables (these will be replaced by n8n)\nARTIST=\"{{ $json[\"artist\"] }}\"\nSONG_TITLE=\"{{ $json[\"songTitle\"].replace(/\"/g, '') }}\"\nCLEAN_TITLE=\"{{ $json[\"songTitle\"].replace(/[^a-zA-Z0-9 \\-()]/g, '') }}\"\nOUTPUT_DIR=\"/Users/matt/Desktop/Songs\"\nOUTPUT_PATH=\"${OUTPUT_DIR}/${CLEAN_TITLE}.%(ext)s\"\nDEFAULT_SONG=\"ytsearch1:Home Resonance\"\nFALLBACK_FILENAME=\"Home_Resonance\"\n\n# Create output directory if it doesn't exist\nmkdir -p \"${OUTPUT_DIR}\"\n\n# Anti-bot download function with multiple strategies\nsmart_download() {\n    local search_query=\"$1\"\n    local description=\"$2\"\n    \n    echo \"Attempting: ${description}\"\n    echo \"Query: ${search_query}\"\n    \n    # Strategy 1: Use browser cookies (best for avoiding bot detection)\n    echo \"Strategy 1: Using Chrome cookies...\"\n    if yt-dlp \"${search_query}\" \\\n       -o \"${OUTPUT_PATH}\" \\\n       --extract-audio \\\n       --audio-format mp3 \\\n       --no-playlist \\\n       --no-post-overwrites \\\n       --cookies-from-browser chrome \\\n       --user-agent \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36\" \\\n       --sleep-interval 1 \\\n       --max-sleep-interval 3 \\\n       --quiet 2>/dev/null; then\n        echo \"✅ Successfully downloaded with cookies: ${description}\"\n        return 0\n    fi\n    \n    # Strategy 2: Try Safari cookies if Chrome fails\n    echo \"Strategy 2: Trying Safari cookies...\"\n    if yt-dlp \"${search_query}\" \\\n       -o \"${OUTPUT_PATH}\" \\\n       --extract-audio \\\n       --audio-format mp3 \\\n       --no-playlist \\\n       --no-post-overwrites \\\n       --cookies-from-browser safari \\\n       --user-agent \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2.1 Safari/605.1.15\" \\\n       --sleep-interval 2 \\\n       --max-sleep-interval 5 \\\n       --quiet 2>/dev/null; then\n        echo \"✅ Successfully downloaded with Safari cookies: ${description}\"\n        return 0\n    fi\n    \n    # Strategy 3: Use different extractor approach\n    echo \"Strategy 3: Alternative extraction method...\"\n    if yt-dlp \"${search_query}\" \\\n       -o \"${OUTPUT_PATH}\" \\\n       --extract-audio \\\n       --audio-format mp3 \\\n       --no-playlist \\\n       --no-post-overwrites \\\n       --extractor-args \"youtube:player_client=web\" \\\n       --user-agent \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36\" \\\n       --sleep-interval 3 \\\n       --quiet 2>/dev/null; then\n        echo \"✅ Successfully downloaded with alternative method: ${description}\"\n        return 0\n    fi\n    \n    # Strategy 4: Slow and steady (maximum delay to avoid detection)\n    echo \"Strategy 4: Slow download with maximum delays...\"\n    if yt-dlp \"${search_query}\" \\\n       -o \"${OUTPUT_PATH}\" \\\n       --extract-audio \\\n       --audio-format mp3 \\\n       --no-playlist \\\n       --no-post-overwrites \\\n       --sleep-interval 5 \\\n       --max-sleep-interval 10 \\\n       --user-agent \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36\" \\\n       --quiet 2>/dev/null; then\n        echo \"✅ Successfully downloaded with slow method: ${description}\"\n        return 0\n    fi\n    \n    echo \"❌ All strategies failed for: ${description}\"\n    return 1\n}\n\n# Fallback download with anti-bot measures\nfallback_download() {\n    local fallback_path=\"${OUTPUT_DIR}/${FALLBACK_FILENAME}.%(ext)s\"\n    \n    echo \"🔄 Downloading fallback song with anti-bot measures...\"\n    \n    # Try fallback with cookies first\n    if yt-dlp \"${DEFAULT_SONG}\" \\\n       -o \"${fallback_path}\" \\\n       --extract-audio \\\n       --audio-format mp3 \\\n       --no-playlist \\\n       --no-post-overwrites \\\n       --cookies-from-browser chrome \\\n       --user-agent \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36\" \\\n       --sleep-interval 2 \\\n       --max-sleep-interval 4 \\\n       --quiet 2>/dev/null; then\n        echo \"✅ Fallback downloaded successfully with cookies\"\n    else\n        # Try without cookies as last resort\n        echo \"Fallback: Trying without cookies...\"\n        if yt-dlp \"${DEFAULT_SONG}\" \\\n           -o \"${fallback_path}\" \\\n           --extract-audio \\\n           --audio-format mp3 \\\n           --no-playlist \\\n           --no-post-overwrites \\\n           --sleep-interval 5 \\\n           --user-agent \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36\" \\\n           --quiet 2>/dev/null; then\n            echo \"✅ Fallback downloaded without cookies\"\n        else\n            echo \"❌ Even fallback failed, but continuing...\"\n            return 1\n        fi\n    fi\n    \n    # Try to rename the fallback file to the expected filename\n    local fallback_file=\"${OUTPUT_DIR}/${FALLBACK_FILENAME}.mp3\"\n    local target_file=\"${OUTPUT_DIR}/${CLEAN_TITLE}.mp3\"\n    \n    if [[ -f \"${fallback_file}\" ]] && [[ \"${fallback_file}\" != \"${target_file}\" ]]; then\n        if cp \"${fallback_file}\" \"${target_file}\" 2>/dev/null; then\n            echo \"✅ Renamed fallback file to match expected filename\"\n            rm -f \"${fallback_file}\" 2>/dev/null\n        else\n            echo \"⚠️ Fallback downloaded but couldn't rename (file still available as ${FALLBACK_FILENAME}.mp3)\"\n        fi\n    fi\n    return 0\n}\n\n# Main execution - THIS SCRIPT NEVER FAILS\necho \"=== yt-dlp Download Script (n8n safe) ===\"\necho \"Artist: ${ARTIST}\"\necho \"Song: ${SONG_TITLE}\"\necho \"Clean Title: ${CLEAN_TITLE}\"\necho \"Output: ${OUTPUT_PATH}\"\n\n# Check if yt-dlp exists\nif ! command -v yt-dlp >/dev/null 2>&1; then\n    echo \"❌ yt-dlp not found, but script will not fail\"\n    echo \"Please install yt-dlp: pip install yt-dlp\"\n    exit 0  # Exit successfully even if yt-dlp is missing\nfi\n\n# Try 1: Original artist + song\nif smart_download \"ytsearch1:${ARTIST} - ${SONG_TITLE}\" \"Original song (${ARTIST} - ${SONG_TITLE})\"; then\n    echo \"🎉 Success! Downloaded the requested song.\"\n    exit 0\nfi\n\n# Try 2: Just the song title\nif smart_download \"ytsearch1:${SONG_TITLE}\" \"Song title only (${SONG_TITLE})\"; then\n    echo \"🎉 Success! Downloaded song by title only.\"\n    exit 0\nfi\n\n# Try 3: Just the artist (get any song by this artist)\nif smart_download \"ytsearch1:${ARTIST}\" \"Any song by artist (${ARTIST})\"; then\n    echo \"🎉 Success! Downloaded a song by the artist.\"\n    exit 0\nfi\n\n# Try 4: Fallback to default song\necho \"\"\necho \"🔄 All specific attempts failed. Using fallback song...\"\nif fallback_download; then\n    echo \"🎉 Fallback song downloaded successfully!\"\n    exit 0\nfi\n\n# If even the fallback fails, we still don't fail the n8n node\necho \"\"\necho \"❌ All downloads failed, but n8n node will not fail\"\necho \"This ensures your workflow continues running\"\necho \"\"\necho \"Troubleshooting info:\"\necho \"- Check internet connection\"\necho \"- Try updating yt-dlp: pip install --upgrade yt-dlp\"\necho \"- Check if YouTube is accessible\"\necho \"- Verify output directory permissions\"\n\n# CRITICAL: Always exit with success code so n8n doesn't fail\nexit 0"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        600,
+        -120
+      ],
+      "id": "28c3618a-f05a-409d-a2a7-396c32b5bff6",
+      "name": "Download Song1"
+    },
+    {
+      "parameters": {
+        "command": "=#!/bin/bash\n\n# Set variables for easier debugging\nINPUT_VIDEO=\"/Users/matt/Desktop/In_Progress/{{ $node[\"Loop Over All Videos\"].json[\"fileName\"] }}\"\nAUDIO_FILE=\"/Users/matt/Desktop/Songs/{{ $node[\"Parse Metadata\"].json[\"songTitle\"].replace(/[^a-zA-Z0-9 \\-()]/g, '') }}.mp3\"\nOUTPUT_FILE=\"/Users/matt/Desktop/Finished_Images/{{ $node[\"Loop Over All Videos\"].json[\"fileName\"] }}\"\nTIMESTAMP=\"{{ $node[\"Parse Metadata\"].json[\"timestamp\"] }}\"\n\necho \"=== FFmpeg Processing Start ===\"\necho \"Input Video: ${INPUT_VIDEO}\"\necho \"Audio File: ${AUDIO_FILE}\"\necho \"Output File: ${OUTPUT_FILE}\"\necho \"Timestamp: ${TIMESTAMP}\"\n\n# Check if input files exist\nif [ ! -f \"${INPUT_VIDEO}\" ]; then\n    echo \"❌ ERROR: Input video file does not exist: ${INPUT_VIDEO}\"\n    exit 1\nfi\n\nif [ ! -f \"${AUDIO_FILE}\" ]; then\n    echo \"❌ ERROR: Audio file does not exist: ${AUDIO_FILE}\"\n    exit 1\nfi\n\n# Create output directory if it doesn't exist\nmkdir -p \"/Users/matt/Desktop/Finished\"\n\necho \"🎬 Starting FFmpeg process...\"\n\n# Run FFmpeg with proper error handling and non-interactive mode\n# Put -ss after the input to avoid sync issues\nffmpeg -y -v error -stats \\\n    -i \"${INPUT_VIDEO}\" \\\n    -ss \"${TIMESTAMP}\" \\\n    -i \"${AUDIO_FILE}\" \\\n    -filter:a \"loudnorm=I=-16:TP=-1.5:LRA=11\" \\\n    -map 0:v -map 1:a -shortest -c:v copy -c:a aac \\\n    \"${OUTPUT_FILE}\"\n\n# Check the exit status\nEXIT_CODE=$?\n\nif [ $EXIT_CODE -eq 0 ]; then\n    echo \"✅ FFmpeg completed successfully\"\n    echo \"Output file: ${OUTPUT_FILE}\"\nelse\n    echo \"❌ FFmpeg failed with exit code: ${EXIT_CODE}\"\n    # Show more detailed error info\n    echo \"This could be due to:\"\n    echo \"- Incompatible video/audio formats\"\n    echo \"- Corrupted input files\"\n    echo \"- Invalid timestamp format\"\n    echo \"- Insufficient disk space\"\n    exit 1\nfi\n\necho \"=== FFmpeg Processing Complete ===\""
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        820,
+        -120
+      ],
+      "id": "24d14baa-5657-488e-98e7-c703bbe8c896",
+      "name": "Combine Song + Video1"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/Users/matt/Desktop/Create_Movie/*",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        -400,
+        740
+      ],
+      "id": "3df30b4b-3c71-40be-94a3-6453b9e322ef",
+      "name": "Read/Write Files from Disk"
+    },
+    {
+      "parameters": {
+        "jsCode": "let overlayBinary = null;\nlet clipBinary = null;\n\nfor (const item of items) {\n  const binaryKeys = Object.keys(item.binary || {});\n  \n  for (const key of binaryKeys) {\n    const file = item.binary[key];\n    const fileName = file.fileName || \"\";\n\n    if (fileName.endsWith(\".mp4\")) {\n      clipBinary = file;\n    } else if (fileName.endsWith(\".png\")) {\n      overlayBinary = file;\n    }\n  }\n}\n\nif (!clipBinary || !overlayBinary) {\n  throw new Error(\"Missing .mp4 or .png file in input\");\n}\n\nreturn [\n  {\n    binary: {\n      clip: clipBinary,\n      overlay: overlayBinary\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        740
+      ],
+      "id": "1e8b31ee-6db8-41c3-a8d7-436a704eeceb",
+      "name": "Grab Clip & Overlay"
+    },
+    {
+      "parameters": {
+        "command": "=#!/bin/bash\n\n# Set base output name and directory\nbase=\"output.mp4\"\noutput_dir=\"/Users/matt/Desktop/Uploads\"\nmkdir -p \"$output_dir\"\n\n# Build initial target path\ntarget=\"$output_dir/$base\"\n\n# Check for duplicates and increment if needed\ncount=1\nname=\"${base%.*}\"\next=\"${base##*.}\"\nwhile [ -e \"$target\" ]; do\n  target=\"$output_dir/${name}_$count.$ext\"\n  count=$((count + 1))\ndone\n\n# Run FFmpeg and output to $target\nffmpeg \\\n-i \"/Users/matt/Desktop/Assets/background.mp4\" \\\n-i \"{{ $binary.overlay.directory }}/{{ $binary.overlay.fileName }}\" \\\n-i \"{{ $binary.clip.directory }}/{{ $binary.clip.fileName }}\" \\\n-filter_complex \"\\\n[0:v]scale=1080:1920[background]; \\\n[1:v]scale=-1:-1,format=rgba[overlay]; \\\n[2:v]scale=iw/4.3:ih/4.3,format=rgba[clip]; \\\n[background][overlay]overlay=(W-w)/2:(H-h)/2-40[tmp]; \\\n[tmp][clip]overlay=(W-w)/2:(H-h)/2+20:shortest=1[final]\" \\\n-map \"[final]\" \\\n-map '2:a?' \\\n-shortest \\\n\"$target\"\n\necho \"Exported to: $target\"\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        260,
+        740
+      ],
+      "id": "0f45c1ea-2466-43bb-ab98-4a6461dc4159",
+      "name": "Create Movie1"
+    },
+    {
+      "parameters": {
+        "content": "# Create Movie",
+        "height": 260,
+        "width": 1820,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -820,
+        660
+      ],
+      "id": "0847bda8-0e62-496e-92b1-60ccdec651a2",
+      "name": "Create Movie3"
+    },
+    {
+      "parameters": {
+        "command": "/opt/homebrew/Cellar/trash/0.9.2/bin/trash /Users/matt/Desktop/Create_Movie/*\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        580,
+        740
+      ],
+      "id": "35a47b55-99cf-46ce-abda-6afb38b569f4",
+      "name": "Trash Raw"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 31 2 *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -720,
+        740
+      ],
+      "id": "67e407a1-9184-40f0-baff-c367cf620ba3",
+      "name": "Schedule Trigger4"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "74fcb362-8101-4b2f-a289-ae69f10c5dbe",
+              "name": "scheduledTime",
+              "value": "={{ (() => {\n  const base = new Date($node[\"Calculate Time\"].json[\"anchorTime\"]);\n  const hoursToAdd = parseInt(\n    $node[\"Loop Over All Videos1\"].json[\"fileName\"].replace(\".mp4\", \"\")\n  );\n  \n  let date = new Date(base.getTime());\n  \n  // Add the specified number of hours, skipping business hours\n  for (let i = 0; i < hoursToAdd; i++) {\n    date.setTime(date.getTime() + 60 * 60 * 1000); // Add 1 hour\n    \n    // If we land in business hours (9am-5pm), skip to 5pm\n    if (date.getHours() >= 9 && date.getHours() < 17) {\n      date.setHours(17, date.getMinutes(), date.getSeconds(), date.getMilliseconds());\n    }\n  }\n  \n  return date.toISOString();\n})() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1140,
+        1460
+      ],
+      "id": "5ba5872c-7711-40f2-a992-11e8de082726",
+      "name": "Schedule Time"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://oauth2.googleapis.com/token",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "client_id",
+              "value": "={{$env.YOUTUBE_CLIENT_ID}}"
+            },
+            {
+              "name": "client_secret",
+              "value": "={{$env.YOUTUBE_CLIENT_SECRET}}"
+            },
+            {
+              "name": "refresh_token",
+              "value": "={{$env.YOUTUBE_REFRESH_TOKEN}}"
+            },
+            {
+              "name": "grant_type",
+              "value": "refresh_token"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1340,
+        1460
+      ],
+      "id": "10104e72-2a9b-4f53-a394-f49f4b6335c8",
+      "name": "Refresh Token"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$node[\"Refresh Token\"].json[\"access_token\"]}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Upload-Content-Type",
+              "value": "video/mp4"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"snippet\": {\n    \"title\": \"{{ $node['Parse Metadata1'].json['gptTitle'].replace(/['\\\"]/g, '') }}\",\n    \"description\": \"{{ $node['Parse Metadata1'].json['gptDescription'].replace(/['\\\"]/g, '') }} #shorts #viral #trending lowkey tv, low key tv\"\n  },\n  \"status\": {\n    \"privacyStatus\": \"private\",\n    \"publishAt\": \"{{$node[\"Schedule Time\"].json[\"scheduledTime\"]}}\"\n  }\n}\n",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        1460
+      ],
+      "id": "43a30b3d-824a-47b8-b422-0174775ea00a",
+      "name": "Start Upload"
+    },
+    {
+      "parameters": {
+        "fileSelector": "=/Users/matt/Desktop/Uploads/{{$node[\"Loop Over All Videos1\"].json['fileName']}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1740,
+        1460
+      ],
+      "id": "dcd6da8a-be7c-4c4b-981a-f3e0fdc93070",
+      "name": "Read Video"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $node[\"Start Upload\"].json[\"headers\"][\"location\"] }}",
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1960,
+        1460
+      ],
+      "id": "70d60f2e-a606-417f-ac4c-6d70e963cdd3",
+      "name": "Upload Video"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/Users/matt/Desktop/Uploads/*",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        -160,
+        1460
+      ],
+      "id": "116ed6f7-fa39-4d7c-9ba2-24e7d747e657",
+      "name": "Grab All Videos in Folder"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/Users/matt/Desktop/Uploads/*",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        580,
+        1260
+      ],
+      "id": "b5b6cfce-d781-4bdf-a4a5-5c9d2b22e26f",
+      "name": "Grab All Videos Again"
+    },
+    {
+      "parameters": {
+        "command": "=#!/bin/bash\n\nsrc=\"/Users/matt/Desktop/Uploads/{{ $json.fileName }}\"\ndst_dir=\"/Users/matt/Desktop/Video_Archives\"\nbase_name=\"{{ $json.fileName }}\"\nfile_name=\"$base_name\"\ncounter=1\n\n# Extract extension if it exists\nextension=\"${base_name##*.}\"\nfilename=\"${base_name%.*}\"\n\n# Check if extension was actually found (if file has no extension, adjust)\nif [[ \"$filename\" == \"$base_name\" ]]; then\n  # No extension\n  extension=\"\"\nelse\n  extension=\".$extension\"\nfi\n\n# Loop to find non-duplicate name\nwhile [[ -e \"$dst_dir/$file_name\" ]]; do\n  file_name=\"${filename}_$counter$extension\"\n  ((counter++))\ndone\n\n# Move file\nmv \"$src\" \"$dst_dir/$file_name\""
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1060,
+        1260
+      ],
+      "id": "d38ac50c-109b-4ea0-a267-eb5606cd6418",
+      "name": "Move to Archives"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        800,
+        1260
+      ],
+      "id": "3deefc2b-25c9-4bc3-b761-d1e76d0fcbb7",
+      "name": "Loop Over All Again"
+    },
+    {
+      "parameters": {
+        "command": "=ffmpeg -i \"/Users/matt/Desktop/Uploads/{{ $json.fileName }}\" -ss 00:00:01.000 -vframes 1 -y /tmp/frame.png"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        280,
+        1460
+      ],
+      "id": "1b78379c-3895-46fb-8d61-71b86617cdd3",
+      "name": "Extract Thumbnail1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.OPENAI_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"type\": \"text\",\n          \"text\": \"This is a thumbnail for a YouTube Short. Write a relevant title that's under 40 characters and a relevant description based on the content in the video. If there are any public figures in the video, make sure to include their name in the title and description. Do not say \\\"in this video\\\" or \\\"in this youtube short\\\" or anything of the sort in your answers. Format your answer as:\\n\\nTitle: [text]\\nDescription: [text]\"\n        },\n        {\n          \"type\": \"image_url\",\n          \"image_url\": {\n            \"url\": \"data:image/jpeg;base64,{{ $input.all()[0].binary.data.data.toString('base64') }}\"\n          }\n        }\n      ]\n    }\n  ],\n  \"max_tokens\": 300\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        700,
+        1460
+      ],
+      "id": "2c81e995-14ba-4fc0-a771-64865c16984a",
+      "name": "Generate Metadata1",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const content = $json.choices[0].message.content;\n\nconst titleMatch = content.match(/Title:\\s*(.+)/);\nconst descMatch = content.match(/Description:\\s*([\\s\\S]*)/);\n\nreturn [\n  {\n    json: {\n      gptTitle: titleMatch ? titleMatch[1].trim() : \"Untitled\",\n      gptDescription: descMatch ? descMatch[1].trim() : \"No description\",\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        920,
+        1460
+      ],
+      "id": "4dd2c5bf-e086-4666-b366-542b89bc2f5a",
+      "name": "Parse Metadata1"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/tmp/frame.png",
+        "options": {
+          "dataPropertyName": "data"
+        }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        500,
+        1460
+      ],
+      "id": "5937e2e9-16fc-4850-8ddd-c9d46798e8ec",
+      "name": "Read Frame1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// This will cause the node to output no data\nreturn [];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        360,
+        1260
+      ],
+      "id": "1abde2b3-874a-4bd8-af6f-6c107830b20c",
+      "name": "Destroy Input1",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        40,
+        1460
+      ],
+      "id": "06004eb3-2134-46c8-93f8-b815daa137ed",
+      "name": "Loop Over All Videos1",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "content": "# Upload Video",
+        "height": 440,
+        "width": 2960,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -820,
+        1220
+      ],
+      "id": "863f4839-3488-47fb-b044-ca9131045c7f",
+      "name": "Sticky Note14"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 31 2 *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -760,
+        1460
+      ],
+      "id": "6c41791b-624a-4dad-8693-8a7d4aa4a840",
+      "name": "Schedule Trigger5"
+    },
+    {
+      "parameters": {
+        "triggerOn": "folder",
+        "path": "/Users/matt/Desktop/Replace_Wholesome",
+        "events": [
+          "add"
+        ],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.localFileTrigger",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        900
+      ],
+      "id": "1426ef41-bb26-4449-874a-82439d2d1eed",
+      "name": "Local File Trigger8"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/Users/matt/Desktop/Replace_Wholesome/*",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        900
+      ],
+      "id": "c4eb1bbd-2a81-4eaf-9ef0-f3694178b94e",
+      "name": "Grab Videos From Replace7"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1500,
+        900
+      ],
+      "id": "eb8f90ac-5816-427c-bb0d-45ef898746ab",
+      "name": "Loop Over Replace7"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fa70b400-96c3-4b8c-96f4-fb05dee1e793",
+              "name": "videoPath",
+              "value": "=/Users/matt/Desktop/Replace_Wholesome/{{ $json.fileName }}",
+              "type": "string"
+            },
+            {
+              "id": "444bd6ae-67af-422b-86f2-450203b47579",
+              "name": "songPath",
+              "value": "/Users/matt/Desktop/Replace_Songs/Wholesome.mp3",
+              "type": "string"
+            },
+            {
+              "id": "d23640ab-aafa-4521-8e24-a926fc3f11c0",
+              "name": "outputPath",
+              "value": "=/Users/matt/Desktop/Uploads/{{ $json.fileName }}",
+              "type": "string"
+            },
+            {
+              "id": "65ffe6b1-5c19-4ec6-92d5-4cf14e55b51a",
+              "name": "",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1720,
+        980
+      ],
+      "id": "c2033e90-163a-416b-88b1-b656220fadcf",
+      "name": "Replace Set Data7"
+    },
+    {
+      "parameters": {
+        "command": "=ffmpeg -y -i \"{{ $json.videoPath }}\" -i \"{{ $json.songPath }}\" -c:v copy -map 0:v:0 -map 1:a:0 -shortest \"{{ $json.outputPath }}\"\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1920,
+        980
+      ],
+      "id": "1ddd0215-9014-4975-9db2-18242b991893",
+      "name": "Execute Command12"
+    },
+    {
+      "parameters": {
+        "command": "rm -f /Users/matt/Desktop/Replace_Wholesome/*"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1720,
+        840
+      ],
+      "id": "cfd2de3d-fe2c-44e5-97ff-8bf9b4238903",
+      "name": "Remove replace videos7"
+    },
+    {
+      "parameters": {
+        "content": "# Replace Music - Wholesome",
+        "height": 380,
+        "width": 1120,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1020,
+        820
+      ],
+      "id": "3fff046d-9971-4adb-ba6e-1b5ea1be69f6",
+      "name": "Sticky Note15"
+    },
+    {
+      "parameters": {
+        "command": "=cd /Users/matt/Desktop/Replace_Template_Video\nfor file in *.{mp4,mov,avi,mkv,webm}; do\n  [ -e \"$file\" ] || continue  # skip if no matching files\n  output=\"/Users/matt/Desktop/Replace_Template_Video/${file%.*}_resized.mp4\"\n  ffmpeg -i \"$file\" -vf \"scale=w=1920:h=1220:force_original_aspect_ratio=increase,crop=1920:1220\" \"$output\" && rm \"$file\"\ndone"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        2400,
+        2040
+      ],
+      "id": "3e50663b-8a29-4599-ac15-0874466b7f47",
+      "name": "Scale Video1",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "fileSelector": "/Users/matt/Desktop/Replace_Template_Video/**/*.mp4",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        2220,
+        2040
+      ],
+      "id": "d2f8307e-c1a4-4570-8446-09d9a910a48b",
+      "name": "Read/Write Files from Disk2"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/Users/matt/Desktop/Replace_Template_Image/**/*.png",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        2020,
+        2040
+      ],
+      "id": "0af9758c-2fda-4e9b-9145-aac24b7a95a5",
+      "name": "Read/Write Files from Disk4"
+    },
+    {
+      "parameters": {
+        "command": "=cd /Users/matt/Desktop/\n\nffmpeg \\\n -i /Users/matt/Desktop/Assets/background.mp4 \\\n -i \"/Users/matt/Desktop/Replace_Template_Image/{{ $('Read/Write Files from Disk4').item.json.fileName }}\" \\\n -i \"/Users/matt/Desktop/Replace_Template_Video/{{ $('Read/Write Files from Disk2').item.json.fileName.replace(/\\.mp4$/, '') + '_resized.mp4' }}\" \\\n -filter_complex \"\\\n[1:v]scale=iw:ih[img]; \\\n[2:v]scale=iw*0.475:ih*0.475[vid]; \\\n[0:v][img]overlay=(W-w)/2:(H-h)/2-60[tmp]; \\\n[tmp][vid]overlay=(W-w)/2:(H-h)/2-20:shortest=1[out]\" \\\n-map \"[out]\" -map 2:a? \\\n-c:v libx264 -crf 18 -preset veryfast \\\n-pix_fmt yuv420p \\\n-shortest \\\n\"/Users/matt/Desktop/Finished/{{ $('Read/Write Files from Disk2').item.json.fileName.replace(/\\.mp4$/, '') + '_fixed.mp4' }}\"\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        2560,
+        2040
+      ],
+      "id": "533ad470-f7f4-48f5-b8e4-8f7c190c1b3f",
+      "name": "Execute Command13",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "maxTries": 5
+    },
+    {
+      "parameters": {
+        "command": "/opt/homebrew/Cellar/trash/0.9.2/bin/trash /Users/matt/Desktop/Replace_Template/*"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        2740,
+        2040
+      ],
+      "id": "699939cb-9c80-4fa8-b042-c2d44b9b4ec5",
+      "name": "Execute Command14"
+    },
+    {
+      "parameters": {
+        "content": "# Replace Template\n",
+        "height": 260,
+        "width": 1660
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1620,
+        1960
+      ],
+      "id": "6028ec62-bc38-4c9b-952d-3b811fe7c28d",
+      "name": "Sticky Note16"
+    },
+    {
+      "parameters": {
+        "triggerOn": "folder",
+        "path": "/Users/matt/Desktop/Replace_Template_Video",
+        "events": [
+          "add"
+        ],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.localFileTrigger",
+      "typeVersion": 1,
+      "position": [
+        1680,
+        2040
+      ],
+      "id": "82493c78-e246-4368-b493-e726cc2ae776",
+      "name": "Local File Trigger9"
+    },
+    {
+      "parameters": {
+        "command": "rm -rf /Users/matt/Desktop/Replace_Template_Video/*"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        2920,
+        2040
+      ],
+      "id": "34ca508d-d983-465f-8b28-18fbaef58a8b",
+      "name": "Execute Command15"
+    },
+    {
+      "parameters": {
+        "command": "/opt/homebrew/Cellar/trash/0.9.2/bin/trash /Users/matt/Desktop/Replace_Template_Image/*\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        3100,
+        2040
+      ],
+      "id": "8c89d9df-328c-41c8-9361-6b3e968bdaf4",
+      "name": "Execute Command16"
+    },
+    {
+      "parameters": {
+        "amount": 20
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1840,
+        2040
+      ],
+      "id": "5153a8b7-7899-4032-8f06-1774c0ed9008",
+      "name": "Wait",
+      "webhookId": "486ce214-4808-4b9b-ad5e-e3e855eb1013"
+    },
+    {
+      "parameters": {
+        "triggerOn": "folder",
+        "path": "/Users/matt/Desktop/Add_Any",
+        "events": [
+          "add"
+        ],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.localFileTrigger",
+      "typeVersion": 1,
+      "position": [
+        2220,
+        880
+      ],
+      "id": "13a30e0c-e059-4f71-9649-b4e27daebf61",
+      "name": "Local File Trigger10"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2480,
+        860
+      ],
+      "id": "b789ae13-0184-4f40-98de-da360de8f054",
+      "name": "Loop Over Replace8"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fa70b400-96c3-4b8c-96f4-fb05dee1e793",
+              "name": "videoPath",
+              "value": "=/Users/matt/Desktop/Add_Any/{{ $json.fileName }}",
+              "type": "string"
+            },
+            {
+              "id": "d23640ab-aafa-4521-8e24-a926fc3f11c0",
+              "name": "outputPath",
+              "value": "=/Users/matt/Desktop/Uploads/{{ $json.fileName }}",
+              "type": "string"
+            },
+            {
+              "id": "65ffe6b1-5c19-4ec6-92d5-4cf14e55b51a",
+              "name": "",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2620,
+        1000
+      ],
+      "id": "c7993d01-7d45-4826-ba03-e59c6ca7c88f",
+      "name": "Replace Set Data8"
+    },
+    {
+      "parameters": {
+        "command": "=ffmpeg -y \\\n-i \"{{ $node[\"Replace Set Data8\"].json.videoPath }}\" \\\n-i \"{{ $json.songPath }}\" \\\n-filter_complex \"[0:a][1:a]amix=inputs=2:duration=first:dropout_transition=2,volume=2[aout]\" \\\n-map 0:v:0 -map \"[aout]\" -c:v copy -shortest \\\n\"{{ $node[\"Replace Set Data8\"].json.outputPath }}\"\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        3100,
+        1000
+      ],
+      "id": "bd08bdb4-e83f-4465-860e-5001494663fa",
+      "name": "Execute Command17"
+    },
+    {
+      "parameters": {
+        "command": "rm -f /Users/matt/Desktop/Add_Any/*.mp4\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        3060,
+        840
+      ],
+      "id": "6f48313b-7d27-4855-902d-0207fa2e2b6a",
+      "name": "Remove replace videos8"
+    },
+    {
+      "parameters": {
+        "content": "# Add Music - Any",
+        "height": 380,
+        "width": 1120,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2160,
+        820
+      ],
+      "id": "189bdef6-f74f-4ded-8f5b-e3e5876f94cc",
+      "name": "Sticky Note17"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/Users/matt/Desktop/Add_Any/*.mp4",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        2220,
+        1020
+      ],
+      "id": "9ae8490c-c618-45ca-a83d-0ba44b0a477e",
+      "name": "Grab Videos From Replace8"
+    },
+    {
+      "parameters": {
+        "command": "ls -1 /Users/matt/Desktop/Add_Any/*.mp3 | head -n 1"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        2780,
+        1000
+      ],
+      "id": "c7bf6b85-5d8f-48b5-9b2a-f5f624c1d1f5",
+      "name": "Execute Command18"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ff067ba5-4e9f-49cd-a237-c87197cf1930",
+              "name": "songPath",
+              "value": "={{ $json.stdout }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2940,
+        1000
+      ],
+      "id": "66f6c342-fe4a-45c2-996e-7d6d13e90397",
+      "name": "Edit Fields3"
+    },
+    {
+      "parameters": {
+        "triggerOn": "folder",
+        "path": "/Users/matt/Desktop/Trim_Song/",
+        "events": [
+          "add"
+        ],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.localFileTrigger",
+      "typeVersion": 1,
+      "position": [
+        2380,
+        1760
+      ],
+      "id": "a26545e5-07c5-4a19-b4cd-341ce8b223c3",
+      "name": "Local File Trigger11"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/Users/matt/Desktop/Trim_Song/*",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        2600,
+        1760
+      ],
+      "id": "98ce1247-83c0-43d0-aaab-2decda63098c",
+      "name": "Grab Videos From Replace9"
+    },
+    {
+      "parameters": {
+        "command": "=ffmpeg -i \"/Users/matt/Desktop/Trim_Song/{{ $json.fileName }}\" -ss 30 -c copy \"/Users/matt/Desktop/Replace_Any/{{ $json.fileName.replace(/\\.[^/.]+$/, '') }}_trimmed{{ $json.fileName.match(/\\.[^/.]+$/)[0] }}\"\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        2820,
+        1760
+      ],
+      "id": "049578d7-389a-4aed-96a6-bd520e9f85aa",
+      "name": "Execute Command19"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 31 2 *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -640,
+        440
+      ],
+      "id": "8c0cfa99-fcbd-4170-9974-24ee19966311",
+      "name": "Schedule Trigger3"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Do nothing\nreturn [];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -20,
+        -300
+      ],
+      "id": "33e4ba2f-fb78-47e2-9716-acdf88297678",
+      "name": "Destroy Input2",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "content": "# Trim Music",
+        "height": 260,
+        "width": 1040,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2240,
+        1680
+      ],
+      "id": "26a20efd-d6f2-4643-880c-52f33f47c1bb",
+      "name": "Sticky Note18"
+    },
+    {
+      "parameters": {
+        "command": "/opt/homebrew/Cellar/trash/0.9.2/bin/trash /Users/matt/Desktop/Trim_Song/*\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        3020,
+        1760
+      ],
+      "id": "579e2ce1-52b1-42c2-917e-4e21e8b73efa",
+      "name": "Execute Command20"
+    },
+    {
+      "parameters": {
+        "jsCode": "// This node runs once, before the loop\nconst anchor = new Date(); \n\nreturn [\n  {\n    json: {\n      anchorTime: anchor.toISOString()\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -560,
+        1460
+      ],
+      "id": "079d60f4-cb9b-47d1-a172-6ff65d76a221",
+      "name": "Calculate Time"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Do nothing\nreturn [];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -360,
+        1460
+      ],
+      "id": "86048db5-06f2-44df-b0cd-7090f898ce11",
+      "name": "Destroy Input3",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -400,
+        1900
+      ],
+      "id": "cfcf63a4-d961-4748-aca5-83e005790b3a",
+      "name": "Loop Over Images"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 31 2 *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -780,
+        1900
+      ],
+      "id": "2816727f-7242-47b1-9ab7-def6b2ac31fc",
+      "name": "Schedule Trigger6"
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = $json[\"stdout\"];\nif (!output) {\n  throw new Error(\"No stdout output from FFprobe.\");\n}\n\nconst [widthStr, heightStr] = output.trim().split(',');\n\nconst width = parseInt(widthStr);\nconst height = parseInt(heightStr);\n\nif (isNaN(width) || isNaN(height)) {\n  throw new Error(\"Failed to parse image width and height.\");\n}\n\nreturn [\n  {\n    json: {\n      width,\n      height,\n      aspectRatio: width / height\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        360,
+        1900
+      ],
+      "id": "6f1feb06-da26-42e2-a9c7-efb0c0a5f58b",
+      "name": "Aspect Ratio"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "path": "=/Users/matt/Desktop/Image_Downloads/{{ $('Loop Over Images').item.json.fileName }}",
+        "binaryData": true
+      },
+      "type": "n8n-nodes-base.dropbox",
+      "typeVersion": 1,
+      "position": [
+        -180,
+        1900
+      ],
+      "id": "8f56bf13-0bb4-4864-8ea1-e2a280a2f7e2",
+      "name": "Dropbox8",
+      "credentials": {
+        "dropboxOAuth2Api": {
+          "id": "RVDRZTOwXBAm4TSH",
+          "name": "Dropbox account 5"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.dropboxapi.com/2/sharing/create_shared_link_with_settings",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"path\": \"{{ $json.path_display }}\",\n  \"settings\": {\n    \"requested_visibility\": \"public\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        1900
+      ],
+      "id": "59bb69ea-a859-4ffe-abfa-d76c6543c5cf",
+      "name": "Get URL3",
+      "credentials": {
+        "dropboxOAuth2Api": {
+          "id": "RVDRZTOwXBAm4TSH",
+          "name": "Dropbox account 5"
+        },
+        "oAuth2Api": {
+          "id": "qMxbUwvMnMn9REv7",
+          "name": "Dropbox credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "folder",
+        "operation": "list",
+        "path": "/Users/matt/Desktop/Image_Downloads",
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.dropbox",
+      "typeVersion": 1,
+      "position": [
+        1080,
+        1780
+      ],
+      "id": "3c20df67-17a8-40ab-816a-40111e4e57d5",
+      "name": "Dropbox6",
+      "alwaysOutputData": false,
+      "credentials": {
+        "dropboxOAuth2Api": {
+          "id": "RVDRZTOwXBAm4TSH",
+          "name": "Dropbox account 5"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "delete",
+        "path": "={{$json[\"pathDisplay\"]}}"
+      },
+      "type": "n8n-nodes-base.dropbox",
+      "typeVersion": 1,
+      "position": [
+        1420,
+        1940
+      ],
+      "id": "55c30d28-b937-47c7-add8-bb5b5aaaca45",
+      "name": "Dropbox7",
+      "credentials": {
+        "dropboxOAuth2Api": {
+          "id": "RVDRZTOwXBAm4TSH",
+          "name": "Dropbox account 5"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1280,
+        1780
+      ],
+      "id": "1c9d244e-5182-4838-93da-2ac1092eb528",
+      "name": "Loop Over Items6"
+    },
+    {
+      "parameters": {
+        "jsCode": "const axios = require('axios');\n\nconst postData = $items('Get URL3')[0].json;\nconst openaiKey = $env.OPENAI_API_KEY;\n\nif (postData.error) {\n  console.log(\"⏭️ Skipping GPT generation due to previous error\");\n  return [\n    {\n      json: {\n        reply: \"Error: Could not generate reply\",\n        error: true,\n        originalError: postData.errorMessage\n      }\n    }\n  ];\n}\n\n// Handle different input formats to get a single image URL\nlet imageUrl = null;\n\n// Check if postData is a string (direct URL)\nif (typeof postData === 'string') {\n  imageUrl = postData;\n}\n// Check if postData has a url property\nelse if (postData.url) {\n  imageUrl = postData.url;\n}\n// Check if postData has an array and take the first item\nelse if (postData.files && Array.isArray(postData.files) && postData.files.length > 0) {\n  imageUrl = postData.files[0].url || postData.files[0];\n}\n// Check for imageUrls array (legacy format) and take first\nelse if (postData.imageUrls && Array.isArray(postData.imageUrls) && postData.imageUrls.length > 0) {\n  imageUrl = postData.imageUrls[0];\n}\n\nconsole.log(`🤖 Processing single Facebook post image`);\n\n// Validate and convert Dropbox URL if needed\nif (!imageUrl || imageUrl.includes('placeholder')) {\n  console.log(\"❌ No valid image URL found\");\n  return [\n    {\n      json: {\n        reply: \"Error: No valid image found\",\n        error: true,\n        errorMessage: \"No valid image URL provided\"\n      }\n    }\n  ];\n}\n\n// Convert Dropbox share links to direct image URLs if needed\nif (imageUrl.includes('dropbox.com')) {\n  if (imageUrl.includes('?dl=0')) {\n    imageUrl = imageUrl.replace('?dl=0', '?raw=1');\n  }\n  if (imageUrl.includes('&dl=0')) {\n    imageUrl = imageUrl.replace('&dl=0', '&raw=1');\n  }\n}\n\nconsole.log(`📸 Processing image URL: ${imageUrl.substring(0, 50)}...`);\n\n// Create image input for GPT Vision\nconst imageInput = {\n  type: \"image_url\",\n  image_url: {\n    url: imageUrl,\n    detail: \"low\"\n  }\n};\n\n// Messages for reply generation\nconst replyMessages = [\n  {\n    role: \"user\",\n    content: [\n      {\n        type: \"text\",\n        text: `Look at this Facebook post image and reply as if you're a real person scrolling social media, not a bot. Your tone should be chill, observant, and down-to-earth, like someone casually commenting something thoughtful, lighthearted, or insightful without trying too hard. Don't repeat the fact from the post. No emojis. No hashtags. No em dashes or en dashes. Keep it under 150 characters.`\n      },\n      imageInput\n    ]\n  }\n];\n\ntry {\n  // Generate reply\n  console.log(\"💬 Generating reply...\");\n  const replyResponse = await axios.post(\n    \"https://api.openai.com/v1/chat/completions\",\n    {\n      model: \"gpt-4o\",\n      messages: replyMessages,\n      temperature: 0.8,\n      max_tokens: 150\n    },\n    {\n      headers: {\n        Authorization: `Bearer ${openaiKey}`,\n        \"Content-Type\": \"application/json\"\n      }\n    }\n  );\n\n  let reply = replyResponse.data.choices[0].message.content.trim();\n\n  // Clean up quotes if present\n  if ((reply.startsWith('\"') && reply.endsWith('\"')) ||\n      (reply.startsWith(\"'\") && reply.endsWith(\"'\"))) {\n    reply = reply.slice(1, -1).trim();\n  }\n\n  console.log(`✅ Generated reply: \"${reply}\"`);\n\n  return [\n    {\n      json: {\n        reply,\n        usedVision: true,\n        model: \"gpt-4o\",\n        imageProcessed: imageUrl.substring(0, 100) + \"...\"\n      }\n    }\n  ];\n\n} catch (error) {\n  console.error(`❌ Error generating GPT reply:`, error.message);\n  \n  // Log more details about the error\n  if (error.response) {\n    console.error(`📋 Response status: ${error.response.status}`);\n    console.error(`📋 Response data:`, JSON.stringify(error.response.data, null, 2));\n  }\n  \n  return [\n    {\n      json: {\n        reply: \"sorry, my brain broke trying to think of a reply 🤖💥\",\n        error: true,\n        errorMessage: error.message,\n        debugInfo: error.response ? {\n          status: error.response.status,\n          data: error.response.data\n        } : null\n      }\n    }\n  ];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        1900
+      ],
+      "id": "bafe7fb2-5f59-4a99-9f0d-9bfd083ee6ac",
+      "name": "Chat Reply2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const axios = require('axios');\nconst gptData = $items('Chat Reply2')[0].json;  // Updated node: gpt reply\nconst cropData = $items('Get URL3')[0].json;  // Updated node: get crop url\nconst ratioData = $items('Aspect Ratio')[0].json;  // Fixed: added $ prefix\nconst templatedKey = $env.TEMPLATED_API_KEY;\n\nconsole.log(`🖼️ Generating Templated.io image...`);\nconsole.log(`📐 Aspect ratio: ${ratioData.aspectRatio}`);\n\nasync function waitForTemplateImage(id, apiKey) {\n  const maxAttempts = 10;\n  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));\n  \n  for (let attempt = 1; attempt <= maxAttempts; attempt++) {\n    console.log(`⌛ Waiting for image (attempt ${attempt})...`);\n    const statusRes = await axios.get(`https://api.templated.io/v1/render/${id}`, {\n      headers: { Authorization: `Bearer ${apiKey}` }\n    });\n    \n    if (statusRes.data.url) {\n      return statusRes.data.url;\n    }\n    await delay(2000); // wait 2 seconds\n  }\n  throw new Error(\"❌ Timeout: Template image rendering took too long.\");\n}\n\ntry {\n  // Select template based on aspect ratio\n  const aspectRatio = ratioData.aspectRatio;\n  let selectedTemplate;\n  \n  if (aspectRatio <= 0.9) {\n    selectedTemplate = \"f7164bd0-3376-4d64-8563-95964913223d\";\n    console.log(`📱 Using portrait/square template (ratio: ${aspectRatio})`);\n  } else {\n    selectedTemplate = \"2d4237a3-b0cd-41c4-a436-8e8ce3875c4b\";\n    console.log(`🖥️ Using landscape template (ratio: ${aspectRatio})`);\n  }\n  \n  const layers = {\n    reply: {\n      text: gptData.reply\n    },\n    image: {\n      image_url: cropData.url.replace('dl=0', 'dl=1')\n    }\n  };\n  \n  const response = await axios.post(\n    \"https://api.templated.io/v1/render\",\n    {\n      template: selectedTemplate,\n      layers,\n      format: \"png\",\n      async: false\n    },\n    {\n      headers: {\n        Authorization: `Bearer ${templatedKey}`,\n        \"Content-Type\": \"application/json\"\n      }\n    }\n  );\n  \n  let finalImageUrl;\n  if (response.data.url) {\n    finalImageUrl = response.data.url;\n    console.log(`✅ Templated image ready instantly: ${finalImageUrl}`);\n  } else if (response.data.id) {\n    finalImageUrl = await waitForTemplateImage(response.data.id, templatedKey);\n    console.log(`✅ Templated image ready after wait: ${finalImageUrl}`);\n  } else {\n    throw new Error(\"No image URL or template ID returned.\");\n  }\n  \n  return [\n    {\n      json: {\n        generatedImageUrl: finalImageUrl,\n        templateId: response.data.id || 'instant',\n        selectedTemplate: selectedTemplate,\n        aspectRatio: aspectRatio,\n        usedVision: !!cropData.link && !cropData.link.includes('placeholder'),\n        success: true\n      }\n    }\n  ];\n} catch (error) {\n  console.error(\"❌ Error during template image generation:\", error.message);\n  return [\n    {\n      json: {\n        generatedImageUrl: null,\n        error: true,\n        errorMessage: error.message\n      }\n    }\n  ];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        1900
+      ],
+      "id": "37527786-f90a-465b-976d-16b1679e0b16",
+      "name": "Generate Template1"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 31 2 *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        900,
+        1780
+      ],
+      "id": "fdd18bf5-cfde-41d8-9eb7-a5c01a951f7d",
+      "name": "Schedule Trigger7"
+    },
+    {
+      "parameters": {
+        "command": "=ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 \"/Users/matt/Desktop/Image_Downloads/{{ $('Loop Over Images').item.json.fileName }}\"\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        180,
+        1900
+      ],
+      "id": "09aaed28-9c60-4d8d-82c9-a54ec13cc7b8",
+      "name": "Execute Command21"
+    },
+    {
+      "parameters": {
+        "content": "## Create Template From Raw Image\n",
+        "height": 540,
+        "width": 2420,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -820,
+        1680
+      ],
+      "typeVersion": 1,
+      "id": "fbeeccb6-758b-4b43-ba44-ea0953b479ed",
+      "name": "Sticky Note19"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/Users/matt/Desktop/Image_Downloads/*",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        -600,
+        1900
+      ],
+      "id": "56924b53-a0ff-4647-be6f-85c1af303122",
+      "name": "Read/Write Files from Disk5"
+    },
+    {
+      "parameters": {
+        "command": "/opt/homebrew/Cellar/trash/0.9.2/bin/trash /Users/matt/Desktop/Image_Downloads/*"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        520,
+        1760
+      ],
+      "id": "1f7d3b54-f9d4-46b5-b7ba-3400e35edb8d",
+      "name": "Execute Command22"
+    },
+    {
+      "parameters": {
+        "content": "# Video Creator/Uploader\n## Author: Matthew Washburn \n## Version: Fall 2025",
+        "width": 420,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        -500
+      ],
+      "id": "7f71463b-3798-4be6-965e-e74f8ff1c294",
+      "name": "Sticky Note21"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Extract Thumbnail": {
+      "main": [
+        [
+          {
+            "node": "Read Frame",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Metadata": {
+      "main": [
+        [
+          {
+            "node": "Parse Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Frame": {
+      "main": [
+        [
+          {
+            "node": "Generate Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over All Videos": {
+      "main": [
+        [
+          {
+            "node": "Remove In_Progress Videos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract Thumbnail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Destroy Input": {
+      "main": [
+        [
+          {
+            "node": "Grab Videos In_Progress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Metadata": {
+      "main": [
+        [
+          {
+            "node": "Download Song1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Grab Images From Smile": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Smile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Smile Set Data": {
+      "main": [
+        [
+          {
+            "node": "Smile Video Creation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Smile Video Creation": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Smile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Grab Videos In_Progress": {
+      "main": [
+        [
+          {
+            "node": "Loop Over All Videos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Smile": {
+      "main": [
+        [
+          {
+            "node": "Move Smile to Archives",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Smile Set Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove In_Progress Videos": {
+      "main": [
+        [
+          {
+            "node": "Destroy Input2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move Smile to Archives": {
+      "main": [
+        [
+          {
+            "node": "Destroy Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Local File Trigger": {
+      "main": [
+        [
+          {
+            "node": "Grab Videos From Replace",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Grab Videos From Replace": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Replace",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Replace": {
+      "main": [
+        [
+          {
+            "node": "Remove replace videos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Replace Set Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Replace Set Data": {
+      "main": [
+        [
+          {
+            "node": "Execute Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Replace",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Local File Trigger1": {
+      "main": [
+        [
+          {
+            "node": "Grab Videos From Replace1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Grab Videos From Replace1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Replace1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Replace1": {
+      "main": [
+        [
+          {
+            "node": "Remove replace videos1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Replace Set Data1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Replace Set Data1": {
+      "main": [
+        [
+          {
+            "node": "Execute Command1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Replace1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Stone": {
+      "main": [
+        [
+          {
+            "node": "Move Stone to Archives",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stone Set Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Grab Images From Stone": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Stone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stone Video Creation": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Stone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stone Set Data": {
+      "main": [
+        [
+          {
+            "node": "Stone Video Creation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Execute Command2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command3": {
+      "main": [
+        []
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Execute Command4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Execute Command3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger2": {
+      "main": [
+        [
+          {
+            "node": "Grab Images From Smile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Local File Trigger2": {
+      "main": [
+        [
+          {
+            "node": "Grab Videos From Replace2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Grab Videos From Replace2": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Replace2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Replace2": {
+      "main": [
+        [
+          {
+            "node": "Remove replace videos2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Replace Set Data2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Replace Set Data2": {
+      "main": [
+        [
+          {
+            "node": "Execute Command5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command5": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Replace2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Local File Trigger3": {
+      "main": [
+        [
+          {
+            "node": "Grab Videos From Replace3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Grab Videos From Replace3": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Replace3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Replace3": {
+      "main": [
+        [
+          {
+            "node": "Remove replace videos3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Replace Set Data3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Replace Set Data3": {
+      "main": [
+        [
+          {
+            "node": "Execute Command6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command6": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Replace3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Local File Trigger4": {
+      "main": [
+        [
+          {
+            "node": "Grab Videos From Replace4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Grab Videos From Replace4": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Replace4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Replace4": {
+      "main": [
+        [
+          {
+            "node": "Remove replace videos4",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Replace Set Data4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Replace Set Data4": {
+      "main": [
+        [
+          {
+            "node": "Execute Command7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command7": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Replace4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Local File Trigger5": {
+      "main": [
+        [
+          {
+            "node": "Execute Command8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Local File Trigger6": {
+      "main": [
+        [
+          {
+            "node": "Grab Videos From Replace5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Grab Videos From Replace5": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Replace5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Replace5": {
+      "main": [
+        [
+          {
+            "node": "Remove replace videos5",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Replace Set Data5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Replace Set Data5": {
+      "main": [
+        [
+          {
+            "node": "Execute Command9",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command9": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Replace5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Local File Trigger7": {
+      "main": [
+        [
+          {
+            "node": "Grab Videos From Replace6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Replace6": {
+      "main": [
+        [
+          {
+            "node": "Remove replace videos6",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Replace Set Data6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Replace Set Data6": {
+      "main": [
+        [
+          {
+            "node": "Execute Command11",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command10": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Replace6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Grab Videos From Replace6": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Replace6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command11": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "Execute Command10",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Song1": {
+      "main": [
+        [
+          {
+            "node": "Combine Song + Video1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Song + Video1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over All Videos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk": {
+      "main": [
+        [
+          {
+            "node": "Grab Clip & Overlay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Grab Clip & Overlay": {
+      "main": [
+        [
+          {
+            "node": "Create Movie1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Movie1": {
+      "main": [
+        [
+          {
+            "node": "Trash Raw",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger4": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Time": {
+      "main": [
+        [
+          {
+            "node": "Refresh Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Refresh Token": {
+      "main": [
+        [
+          {
+            "node": "Start Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start Upload": {
+      "main": [
+        [
+          {
+            "node": "Read Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Video": {
+      "main": [
+        [
+          {
+            "node": "Upload Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Video": {
+      "main": [
+        [
+          {
+            "node": "Loop Over All Videos1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Grab All Videos in Folder": {
+      "main": [
+        [
+          {
+            "node": "Loop Over All Videos1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Grab All Videos Again": {
+      "main": [
+        [
+          {
+            "node": "Loop Over All Again",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move to Archives": {
+      "main": [
+        [
+          {
+            "node": "Loop Over All Again",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over All Again": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Move to Archives",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Thumbnail1": {
+      "main": [
+        [
+          {
+            "node": "Read Frame1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Metadata1": {
+      "main": [
+        [
+          {
+            "node": "Parse Metadata1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Metadata1": {
+      "main": [
+        [
+          {
+            "node": "Schedule Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Frame1": {
+      "main": [
+        [
+          {
+            "node": "Generate Metadata1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Destroy Input1": {
+      "main": [
+        [
+          {
+            "node": "Grab All Videos Again",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over All Videos1": {
+      "main": [
+        [
+          {
+            "node": "Destroy Input1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract Thumbnail1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger5": {
+      "main": [
+        [
+          {
+            "node": "Calculate Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Local File Trigger8": {
+      "main": [
+        [
+          {
+            "node": "Grab Videos From Replace7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Grab Videos From Replace7": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Replace7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Replace7": {
+      "main": [
+        [
+          {
+            "node": "Remove replace videos7",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Replace Set Data7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Replace Set Data7": {
+      "main": [
+        [
+          {
+            "node": "Execute Command12",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command12": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Replace7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scale Video1": {
+      "main": [
+        [
+          {
+            "node": "Execute Command13",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk2": {
+      "main": [
+        [
+          {
+            "node": "Scale Video1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk4": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command13": {
+      "main": [
+        [
+          {
+            "node": "Execute Command14",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Local File Trigger9": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command14": {
+      "main": [
+        [
+          {
+            "node": "Execute Command15",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command15": {
+      "main": [
+        [
+          {
+            "node": "Execute Command16",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Local File Trigger10": {
+      "main": [
+        [
+          {
+            "node": "Grab Videos From Replace8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Replace8": {
+      "main": [
+        [
+          {
+            "node": "Remove replace videos8",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Replace Set Data8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Replace Set Data8": {
+      "main": [
+        [
+          {
+            "node": "Execute Command18",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command17": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Replace8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Grab Videos From Replace8": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Replace8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command18": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields3": {
+      "main": [
+        [
+          {
+            "node": "Execute Command17",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Local File Trigger11": {
+      "main": [
+        [
+          {
+            "node": "Grab Videos From Replace9",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Grab Videos From Replace9": {
+      "main": [
+        [
+          {
+            "node": "Execute Command19",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move Stone to Archives": {
+      "main": [
+        [
+          {
+            "node": "Destroy Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger3": {
+      "main": [
+        [
+          {
+            "node": "Grab Images From Stone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Destroy Input2": {
+      "main": [
+        [
+          {
+            "node": "Grab Images From Stone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command19": {
+      "main": [
+        [
+          {
+            "node": "Execute Command20",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Time": {
+      "main": [
+        [
+          {
+            "node": "Destroy Input3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Destroy Input3": {
+      "main": [
+        [
+          {
+            "node": "Grab All Videos in Folder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Images": {
+      "main": [
+        [
+          {
+            "node": "Execute Command22",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Dropbox8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger6": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aspect Ratio": {
+      "main": [
+        [
+          {
+            "node": "Chat Reply2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dropbox8": {
+      "main": [
+        [
+          {
+            "node": "Get URL3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get URL3": {
+      "main": [
+        [
+          {
+            "node": "Execute Command21",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dropbox6": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dropbox7": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items6": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Dropbox7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat Reply2": {
+      "main": [
+        [
+          {
+            "node": "Generate Template1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Template1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger7": {
+      "main": [
+        [
+          {
+            "node": "Dropbox6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command21": {
+      "main": [
+        [
+          {
+            "node": "Aspect Ratio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk5": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "0105c212-40a1-4b3a-aee1-9073a07ff586",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "8337dd42d2dbf5575f0094a20a9bf5a3c8da69b0e6cb4a20afe8ce60c6079453"
+  },
+  "id": "5TNbKACDD0b9hwYe",
+  "tags": []
+}

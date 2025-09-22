@@ -1,0 +1,798 @@
+{
+  "name": "FB Scraper",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Clear Data\n",
+        "height": 580,
+        "width": 1420,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -500,
+        -380
+      ],
+      "typeVersion": 1,
+      "id": "8e77dde4-995a-4521-afda-8c70d29d8554",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "folder",
+        "operation": "list",
+        "path": "/Users/matt/Desktop/First",
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.dropbox",
+      "typeVersion": 1,
+      "position": [
+        -280,
+        -240
+      ],
+      "id": "60bdc3ec-373c-4b37-82aa-f92cfccd047e",
+      "name": "Dropbox9",
+      "alwaysOutputData": false,
+      "credentials": {
+        "dropboxOAuth2Api": {
+          "id": "RVDRZTOwXBAm4TSH",
+          "name": "Dropbox account 5"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "delete",
+        "path": "={{$json[\"pathDisplay\"]}}"
+      },
+      "type": "n8n-nodes-base.dropbox",
+      "typeVersion": 1,
+      "position": [
+        80,
+        -100
+      ],
+      "id": "39d2ff24-6be4-418b-b556-0f274d78da7a",
+      "name": "Dropbox10",
+      "credentials": {
+        "dropboxOAuth2Api": {
+          "id": "RVDRZTOwXBAm4TSH",
+          "name": "Dropbox account 5"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": "={{ $prevNode.name === 'Dropbox2'}}"
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -80,
+        -240
+      ],
+      "id": "8911afe6-8e86-4ec6-835e-52439d843203",
+      "name": "Loop Over Items5"
+    },
+    {
+      "parameters": {
+        "jsCode": "// This will cause the node to output no data\nreturn [];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        100,
+        -240
+      ],
+      "id": "11d5270a-f9ec-4f4f-83a5-0c6548082992",
+      "name": "Destroy Input",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 31 2 *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -460,
+        -240
+      ],
+      "id": "8f4b0033-2eaf-4c2f-a648-58c995ca552e",
+      "name": "Schedule Trigger2"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "folder",
+        "operation": "list",
+        "path": "/Users/matt/Desktop/Bruh",
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.dropbox",
+      "typeVersion": 1,
+      "position": [
+        300,
+        -240
+      ],
+      "id": "90364122-239a-4c23-8173-32e9546740f8",
+      "name": "Dropbox11",
+      "credentials": {
+        "dropboxOAuth2Api": {
+          "id": "RVDRZTOwXBAm4TSH",
+          "name": "Dropbox account 5"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": "={{ $prevNode.name === 'Dropbox11'}}"
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        480,
+        -240
+      ],
+      "id": "bcbefa71-e27e-4886-b2ad-bfd81ef0b953",
+      "name": "Loop Over Items7"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "delete",
+        "path": "={{$json[\"pathDisplay\"]}}"
+      },
+      "type": "n8n-nodes-base.dropbox",
+      "typeVersion": 1,
+      "position": [
+        700,
+        -240
+      ],
+      "id": "bf4f600f-e00d-48b8-b0fe-306473fec2ab",
+      "name": "Dropbox12",
+      "credentials": {
+        "dropboxOAuth2Api": {
+          "id": "RVDRZTOwXBAm4TSH",
+          "name": "Dropbox account 5"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 31 2 *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        460,
+        -20
+      ],
+      "id": "54e3affd-e48a-43fd-8000-259f2250411d",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.APIFY_FB_TOKEN_1 }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"startUrls\": [\n    { \"url\": \"https://www.facebook.com/FactAlerts\" },\n    { \"url\": \"https://www.facebook.com/LamebookFans\" },\n     { \"url\": \"https://www.facebook.com/RealAllYouCanEat\" },\n     { \"url\": \"https://www.facebook.com/unbfacts\" },\n     { \"url\": \"https://www.facebook.com/knowyourmeme\" },\n     { \"url\": \"https://www.facebook.com/TexasInspiration/\" },\n    { \"url\": \"https://www.facebook.com/EpicTopComments1\" },\n    { \"url\": \"https://www.facebook.com/midwestvseverybody\" },\n    { \"url\": \"https://www.facebook.com/OfficialMensHumor\" },\n    { \"url\": \"https://www.facebook.com/profile.php?id=100075950525619\" },\n    { \"url\": \"https://www.facebook.com/profile.php?id=100071131374238\" }\n  ],\n  \"resultsLimit\": 20\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -80,
+        -660
+      ],
+      "id": "a51a87a1-7225-4438-b925-39858c255d58",
+      "name": "Facebook Scraper"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/Users/matt/Desktop/FB/{{ $binary.data.fileName }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        520,
+        -660
+      ],
+      "id": "53fb5de6-0487-43ab-b1b5-f993142af4a6",
+      "name": "Read/Write Files from Disk3",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.dropboxapi.com/2/sharing/create_shared_link_with_settings",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"path\": \"{{ $json.path_display }}\",\n  \"settings\": {\n    \"requested_visibility\": \"public\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        840,
+        -660
+      ],
+      "id": "86c8b88c-771c-4349-a5de-8a51b81265b6",
+      "name": "Get URL1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "dropboxOAuth2Api": {
+          "id": "RVDRZTOwXBAm4TSH",
+          "name": "Dropbox account 5"
+        },
+        "oAuth2Api": {
+          "id": "qMxbUwvMnMn9REv7",
+          "name": "Dropbox credential"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{$json[\"image\"]}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        340,
+        -660
+      ],
+      "id": "a777c1bf-8a1a-47a3-a097-2eebe9808e4c",
+      "name": "Download FB Image",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        120,
+        -680
+      ],
+      "id": "e45b5345-c6cc-4d9e-8029-528900aa1df3",
+      "name": "Loop Over Items1",
+      "executeOnce": false,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const axios = require('axios');\n\nconst postData = $items('Get URL1')[0].json;\nconst openaiKey = $env.OPENAI_API_KEY;\n\nif (postData.error) {\n  console.log(\"⏭️ Skipping GPT generation due to previous error\");\n  return [\n    {\n      json: {\n        reply: \"Error: Could not generate reply\",\n        error: true,\n        originalError: postData.errorMessage\n      }\n    }\n  ];\n}\n\n// Handle different input formats to get a single image URL\nlet imageUrl = null;\n\n// Check if postData is a string (direct URL)\nif (typeof postData === 'string') {\n  imageUrl = postData;\n}\n// Check if postData has a url property\nelse if (postData.url) {\n  imageUrl = postData.url;\n}\n// Check if postData has an array and take the first item\nelse if (postData.files && Array.isArray(postData.files) && postData.files.length > 0) {\n  imageUrl = postData.files[0].url || postData.files[0];\n}\n// Check for imageUrls array (legacy format) and take first\nelse if (postData.imageUrls && Array.isArray(postData.imageUrls) && postData.imageUrls.length > 0) {\n  imageUrl = postData.imageUrls[0];\n}\n\nconsole.log(`🤖 Processing single Facebook post image`);\n\n// Validate and convert Dropbox URL if needed\nif (!imageUrl || imageUrl.includes('placeholder')) {\n  console.log(\"❌ No valid image URL found\");\n  return [\n    {\n      json: {\n        reply: \"Error: No valid image found\",\n        error: true,\n        errorMessage: \"No valid image URL provided\"\n      }\n    }\n  ];\n}\n\n// Convert Dropbox share links to direct image URLs if needed\nif (imageUrl.includes('dropbox.com')) {\n  if (imageUrl.includes('?dl=0')) {\n    imageUrl = imageUrl.replace('?dl=0', '?raw=1');\n  }\n  if (imageUrl.includes('&dl=0')) {\n    imageUrl = imageUrl.replace('&dl=0', '&raw=1');\n  }\n}\n\nconsole.log(`📸 Processing image URL: ${imageUrl.substring(0, 50)}...`);\n\n// Create image input for GPT Vision\nconst imageInput = {\n  type: \"image_url\",\n  image_url: {\n    url: imageUrl,\n    detail: \"low\"\n  }\n};\n\n// Messages for reply generation\nconst replyMessages = [\n  {\n    role: \"user\",\n    content: [\n      {\n        type: \"text\",\n        text: `Look at this Facebook post image and reply as if you're a real person scrolling social media, not a bot. Your tone should be chill, observant, and down-to-earth, like someone casually commenting something thoughtful, lighthearted, or insightful without trying too hard. Don't repeat the fact from the post. No emojis. No hashtags. No em dashes or en dashes. Keep it under 150 characters.`\n      },\n      imageInput\n    ]\n  }\n];\n\ntry {\n  // Generate reply\n  console.log(\"💬 Generating reply...\");\n  const replyResponse = await axios.post(\n    \"https://api.openai.com/v1/chat/completions\",\n    {\n      model: \"gpt-4o\",\n      messages: replyMessages,\n      temperature: 0.8,\n      max_tokens: 150\n    },\n    {\n      headers: {\n        Authorization: `Bearer ${openaiKey}`,\n        \"Content-Type\": \"application/json\"\n      }\n    }\n  );\n\n  let reply = replyResponse.data.choices[0].message.content.trim();\n\n  // Clean up quotes if present\n  if ((reply.startsWith('\"') && reply.endsWith('\"')) ||\n      (reply.startsWith(\"'\") && reply.endsWith(\"'\"))) {\n    reply = reply.slice(1, -1).trim();\n  }\n\n  console.log(`✅ Generated reply: \"${reply}\"`);\n\n  return [\n    {\n      json: {\n        reply,\n        usedVision: true,\n        model: \"gpt-4o\",\n        imageProcessed: imageUrl.substring(0, 100) + \"...\"\n      }\n    }\n  ];\n\n} catch (error) {\n  console.error(`❌ Error generating GPT reply:`, error.message);\n  \n  // Log more details about the error\n  if (error.response) {\n    console.error(`📋 Response status: ${error.response.status}`);\n    console.error(`📋 Response data:`, JSON.stringify(error.response.data, null, 2));\n  }\n  \n  return [\n    {\n      json: {\n        reply: \"sorry, my brain broke trying to think of a reply 🤖💥\",\n        error: true,\n        errorMessage: error.message,\n        debugInfo: error.response ? {\n          status: error.response.status,\n          data: error.response.data\n        } : null\n      }\n    }\n  ];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        -660
+      ],
+      "id": "9dd02494-9891-489b-b580-24b27d64d140",
+      "name": "Chat Reply1",
+      "executeOnce": false,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const axios = require('axios');\nconst gptData = $items('Chat Reply1')[0].json;  // Updated node: gpt reply\nconst cropData = $items('Get URL1')[0].json;  // Updated node: get crop url\nconst ratioData = $items('Aspect Ratio1')[0].json;  // Fixed: added $ prefix\nconst templatedKey = $env.TEMPLATED_API_KEY;\n\nconsole.log(`🖼️ Generating Templated.io image...`);\nconsole.log(`📐 Aspect ratio: ${ratioData.aspectRatio}`);\n\nasync function waitForTemplateImage(id, apiKey) {\n  const maxAttempts = 10;\n  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));\n  \n  for (let attempt = 1; attempt <= maxAttempts; attempt++) {\n    console.log(`⌛ Waiting for image (attempt ${attempt})...`);\n    const statusRes = await axios.get(`https://api.templated.io/v1/render/${id}`, {\n      headers: { Authorization: `Bearer ${apiKey}` }\n    });\n    \n    if (statusRes.data.url) {\n      return statusRes.data.url;\n    }\n    await delay(2000); // wait 2 seconds\n  }\n  throw new Error(\"❌ Timeout: Template image rendering took too long.\");\n}\n\ntry {\n  // Select template based on aspect ratio\n  const aspectRatio = ratioData.aspectRatio;\n  let selectedTemplate;\n  \n  if (aspectRatio <= 0.9) {\n    selectedTemplate = \"f7164bd0-3376-4d64-8563-95964913223d\";\n    console.log(`📱 Using portrait/square template (ratio: ${aspectRatio})`);\n  } else {\n    selectedTemplate = \"2d4237a3-b0cd-41c4-a436-8e8ce3875c4b\";\n    console.log(`🖥️ Using landscape template (ratio: ${aspectRatio})`);\n  }\n  \n  const layers = {\n    reply: {\n      text: gptData.reply\n    },\n    image: {\n      image_url: cropData.url.replace('dl=0', 'dl=1')\n    }\n  };\n  \n  const response = await axios.post(\n    \"https://api.templated.io/v1/render\",\n    {\n      template: selectedTemplate,\n      layers,\n      format: \"png\",\n      async: false\n    },\n    {\n      headers: {\n        Authorization: `Bearer ${templatedKey}`,\n        \"Content-Type\": \"application/json\"\n      }\n    }\n  );\n  \n  let finalImageUrl;\n  if (response.data.url) {\n    finalImageUrl = response.data.url;\n    console.log(`✅ Templated image ready instantly: ${finalImageUrl}`);\n  } else if (response.data.id) {\n    finalImageUrl = await waitForTemplateImage(response.data.id, templatedKey);\n    console.log(`✅ Templated image ready after wait: ${finalImageUrl}`);\n  } else {\n    throw new Error(\"No image URL or template ID returned.\");\n  }\n  \n  return [\n    {\n      json: {\n        generatedImageUrl: finalImageUrl,\n        templateId: response.data.id || 'instant',\n        selectedTemplate: selectedTemplate,\n        aspectRatio: aspectRatio,\n        usedVision: !!cropData.link && !cropData.link.includes('placeholder'),\n        success: true\n      }\n    }\n  ];\n} catch (error) {\n  console.error(\"❌ Error during template image generation:\", error.message);\n  return [\n    {\n      json: {\n        generatedImageUrl: null,\n        error: true,\n        errorMessage: error.message\n      }\n    }\n  ];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        -660
+      ],
+      "id": "1a5bf316-cf78-43f4-b05d-29689ebfe027",
+      "name": "Generate Template",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "command": "=ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 \"{{ $('Read/Write Files from Disk3').item.json.fileName }}\"\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1020,
+        -660
+      ],
+      "id": "9e9f00c4-2452-4280-8f79-f15bcf23e2c7",
+      "name": "Execute Command3",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = $json[\"stdout\"];\nif (!output) {\n  throw new Error(\"No stdout output from FFprobe.\");\n}\n\nconst [widthStr, heightStr] = output.trim().split(',');\n\nconst width = parseInt(widthStr);\nconst height = parseInt(heightStr);\n\nif (isNaN(width) || isNaN(height)) {\n  throw new Error(\"Failed to parse image width and height.\");\n}\n\nreturn [\n  {\n    json: {\n      width,\n      height,\n      aspectRatio: width / height\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1180,
+        -660
+      ],
+      "id": "a7c95169-01f8-4e3b-a4c8-25a716a5224d",
+      "name": "Aspect Ratio1",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "content": "## Facebook Scraper\n",
+        "height": 340,
+        "width": 2720,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -500,
+        -740
+      ],
+      "typeVersion": 1,
+      "id": "b4b2154d-dc03-4723-a8ed-93117e4088df",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "command": "/opt/homebrew/Cellar/trash/0.9.2/bin/trash /Users/matt/Desktop/FB/*\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        2020,
+        -660
+      ],
+      "id": "cc3b677c-46d0-45cb-bdc0-15d853250a0f",
+      "name": "Execute Command9",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 31 2 *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -320,
+        -660
+      ],
+      "id": "0f13073f-fa4b-4276-80e4-0b8953a7a7b4",
+      "name": "Schedule Trigger8"
+    },
+    {
+      "parameters": {
+        "jsCode": "// This will cause the node to output no data\nreturn [];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ],
+      "id": "ec175676-0d62-435a-9d53-37b7b89047e7",
+      "name": "Destroy Input1",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "url": "={{$json[\"generatedImageUrl\"]}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1680,
+        -660
+      ],
+      "id": "67b5fc94-3dec-42fc-90c2-51b4f2537243",
+      "name": "Download Image5",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/Users/matt/Desktop/FB_Images/{{ $binary.data.fileName }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1840,
+        -660
+      ],
+      "id": "2fcdf655-7fff-4b52-af9a-853591a3c95a",
+      "name": "Read/Write Files from Disk8",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "path": "=/Users/matt/Desktop/FB/{{ $binary.data.fileName }}",
+        "binaryData": true
+      },
+      "type": "n8n-nodes-base.dropbox",
+      "typeVersion": 1,
+      "position": [
+        680,
+        -660
+      ],
+      "id": "5989528a-efec-4873-b3ce-6f3dfdb1b6d5",
+      "name": "Upload a file",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "maxTries": 5,
+      "alwaysOutputData": true,
+      "credentials": {
+        "dropboxOAuth2Api": {
+          "id": "RVDRZTOwXBAm4TSH",
+          "name": "Dropbox account 5"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "content": "# FB Scraper\n## Author: Matthew Washburn \n## Version: Fall 2025",
+        "width": 420,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        680,
+        -920
+      ],
+      "id": "55bc99b3-f254-43f6-8f1f-74e30adec159",
+      "name": "Sticky Note21"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Dropbox9": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dropbox10": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items5": {
+      "main": [
+        [
+          {
+            "node": "Destroy Input",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Dropbox10",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger2": {
+      "main": [
+        [
+          {
+            "node": "Dropbox9",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dropbox11": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items7": {
+      "main": [
+        [
+          {
+            "node": "Destroy Input1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Dropbox12",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dropbox12": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Destroy Input": {
+      "main": [
+        [
+          {
+            "node": "Dropbox11",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Dropbox11",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Facebook Scraper": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk3": {
+      "main": [
+        [
+          {
+            "node": "Upload a file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download FB Image": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Download FB Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get URL1": {
+      "main": [
+        [
+          {
+            "node": "Execute Command3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat Reply1": {
+      "main": [
+        [
+          {
+            "node": "Generate Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Template": {
+      "main": [
+        [
+          {
+            "node": "Download Image5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command3": {
+      "main": [
+        [
+          {
+            "node": "Aspect Ratio1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aspect Ratio1": {
+      "main": [
+        [
+          {
+            "node": "Chat Reply1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command9": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger8": {
+      "main": [
+        [
+          {
+            "node": "Facebook Scraper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Destroy Input1": {
+      "main": [
+        [
+          {
+            "node": "Dropbox11",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Image5": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk8": {
+      "main": [
+        [
+          {
+            "node": "Execute Command9",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload a file": {
+      "main": [
+        [
+          {
+            "node": "Get URL1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "b13d130a-32d0-4ad2-86fd-5141bcc9a513",
+  "meta": {
+    "instanceId": "8337dd42d2dbf5575f0094a20a9bf5a3c8da69b0e6cb4a20afe8ce60c6079453"
+  },
+  "id": "3cfUuVQLVE27ddN9",
+  "tags": []
+}

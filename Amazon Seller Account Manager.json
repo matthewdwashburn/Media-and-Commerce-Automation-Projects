@@ -1,0 +1,4020 @@
+{
+  "name": "Amazon Seller Account Manager",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.amazon.com/auth/o2/token",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/x-www-form-urlencoded"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "grant_type",
+              "value": "refresh_token"
+            },
+            {
+              "name": "refresh_token",
+              "value": "={{$env.AMAZON_REFRESH_TOKEN}}"
+            },
+            {
+              "name": "client_id",
+              "value": "={{$env.AMAZON_CLIENT_ID}}"
+            },
+            {
+              "name": "client_secret",
+              "value": "={{$env.AMAZON_CLIENT_SECRET}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -40,
+        -660
+      ],
+      "id": "bcadc91e-d933-422e-9678-caba9942515c",
+      "name": "Get Token"
+    },
+    {
+      "parameters": {
+        "url": "https://sellingpartnerapi-na.amazon.com/orders/v0/orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "CreatedAfter",
+              "value": "={{ $node[\"Time\"].json[\"todaysDateChi\"] }}T07:00:00.000Z"
+            },
+            {
+              "name": "MarketplaceIds",
+              "value": "ATVPDKIKX0DER"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$node[\"Get Token\"].json[\"access_token\"]}}"
+            },
+            {
+              "name": "x-amz-access-token",
+              "value": "={{$node[\"Get Token\"].json[\"access_token\"]}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        340,
+        -660
+      ],
+      "id": "78c060f6-ad52-4cd2-9609-24188be29351",
+      "name": "Get Orders"
+    },
+    {
+      "parameters": {
+        "jsCode": "//Get todayChi's date and time\n\nconst now = new Date();\nlet todayChi = new Date(now);\nlet todayZulu = new Date(now);\ntodayChi = new Date(todayChi.getTime() - 2.5 * 60 * 1000)\ntodayZulu = new Date(todayZulu.getTime() - 2.5 * 60 * 1000)\n\nconst hours = todayChi.getHours();\nconsole.log(hours);\nif(hours >= 19 && hours < 23) {\n   todayChi.setDate(todayChi.getDate() - 1);\n}\n\nconst todaysDateChi = todayChi.toISOString().split(\"T\")[0];\nconst todaysDateZulu = todayZulu.toISOString().split(\"T\")[0];\nconst todaysTimeZulu = todayZulu.toISOString().split(\"T\")[1];\n\n\nreturn {\n  todaysDateChi,\n  todaysDateZulu,\n  todaysTimeZulu,\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        -660
+      ],
+      "id": "3d16ec94-5c1b-45ce-8fef-78a58c662603",
+      "name": "Time"
+    },
+    {
+      "parameters": {
+        "jsCode": "const orders = $input.first().json.payload.Orders;\nreturn orders.map(order => ({\n  json: {\n  OrderId: order.AmazonOrderId\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        -660
+      ],
+      "id": "d0255c9b-d651-4e55-98c7-29e82b5a7985",
+      "name": "Parse"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        740,
+        -660
+      ],
+      "id": "fa135ade-a90e-4da9-9725-c1e1934b83f6",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "url": "=https://sellingpartnerapi-na.amazon.com/orders/v0/orders/{{$node[\"Loop Over Items\"].json['OrderId']}}/orderItems",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$node[\"Get Token\"].json[\"access_token\"]}}"
+            },
+            {
+              "name": "x-amz-access-token",
+              "value": "={{$node[\"Get Token\"].json[\"access_token\"]}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        -640
+      ],
+      "id": "d9b97ed9-0412-4b49-a81d-4cf8d0809421",
+      "name": "Get Order Details"
+    },
+    {
+      "parameters": {
+        "url": "https://sellingpartnerapi-na.amazon.com/finances/v0/financialEvents",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "PostedAfter",
+              "value": "={{ $node[\"Time\"].json[\"todaysDateChi\"] }}T07:00:00.000Z"
+            },
+            {
+              "name": "transactionStatus",
+              "value": "RELEASED"
+            },
+            {
+              "name": "marketplaceId",
+              "value": "ATVPDKIKX0DER"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$node[\"Get Token\"].json[\"access_token\"]}}"
+            },
+            {
+              "name": "x-amz-access-token",
+              "value": "={{$node[\"Get Token\"].json[\"access_token\"]}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        180,
+        -660
+      ],
+      "id": "8663d4d5-975a-48db-8fa6-bd28d39c85cc",
+      "name": "Get Financials"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -440,
+        -660
+      ],
+      "id": "9eff3acb-040b-4d74-9277-c7def587b028",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "jsCode": "//Get todayChi's date and time\n\nconst now = new Date();\nlet todayChi = new Date(now);\nlet todayZulu = new Date(now);\ntodayChi = new Date(todayChi.getTime() - 2.5 * 60 * 1000)\ntodayZulu = new Date(todayZulu.getTime() - 2.5 * 60 * 1000)\n\nconst hours = todayChi.getHours();\nconsole.log(hours);\nif(hours >= 19 && hours < 23) {\n   todayChi.setDate(todayChi.getDate() - 1);\n}\nconst todaysDateChi = todayChi.toISOString().split(\"T\")[0];\nconst todaysDateZulu = todayZulu.toISOString().split(\"T\")[0];\nconst todaysTimeZulu = todayZulu.toISOString().split(\"T\")[1];\n\ntodayChi.setDate(todayChi.getDate() - 1);\ntodayZulu.setDate(todayZulu.getDate() - 1);\n\nconst yesterdaysDateChi = todayChi.toISOString().split(\"T\")[0];\nconst yesterdaysDateZulu = todayZulu.toISOString().split(\"T\")[0];\nconst yesterdaysTimeZulu = todayZulu.toISOString().split(\"T\")[1];\n\ntodayChi.setDate(todayChi.getDate() - 1);\ntodayZulu.setDate(todayZulu.getDate() - 1);\n\nconst twoDaysAgoDateChi = todayChi.toISOString().split(\"T\")[0];\nconst twoDaysAgoDateZulu = todayZulu.toISOString().split(\"T\")[0];\nconst twoDaysAgoTimeZulu = todayZulu.toISOString().split(\"T\")[1];\n\nreturn {\n  todaysDateChi,\n  todaysDateZulu,\n  todaysTimeZulu,\n  yesterdaysDateChi,\n  yesterdaysDateZulu,\n  yesterdaysTimeZulu,\n  twoDaysAgoDateChi,\n  twoDaysAgoDateZulu,\n  twoDaysAgoTimeZulu\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        -420
+      ],
+      "id": "c52967b0-b66c-4425-ab87-530ea87d2457",
+      "name": "Time1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.amazon.com/auth/o2/token",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/x-www-form-urlencoded"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "grant_type",
+              "value": "refresh_token"
+            },
+            {
+              "name": "refresh_token",
+              "value": "={{$env.AMAZON_REFRESH_TOKEN}}"
+            },
+            {
+              "name": "client_id",
+              "value": "={{$env.AMAZON_CLIENT_ID}}"
+            },
+            {
+              "name": "client_secret",
+              "value": "={{$env.AMAZON_CLIENT_SECRET}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -40,
+        -420
+      ],
+      "id": "46760db8-d4d8-40f2-b8f3-5e044d0420c9",
+      "name": "Get Token1"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 31 2 *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -440,
+        -420
+      ],
+      "id": "73181398-5edf-4244-b4cf-f4c9e0242339",
+      "name": "Schedule Trigger4"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sellingpartnerapi-na.amazon.com/reports/2021-06-30/reports",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$node[\"Get Token1\"].json[\"access_token\"]}}"
+            },
+            {
+              "name": "x-amz-access-token",
+              "value": "={{$node[\"Get Token1\"].json[\"access_token\"]}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"reportType\":\"GET_FLAT_FILE_ALL_ORDERS_DATA_BY_LAST_UPDATE_GENERAL\",\"dataStartTime\":\"{{$node[\"Time1\"].json['todaysDateChi']}}T07:00:00Z\",\"dataEndTime\":\"{{$node[\"Time1\"].json['todaysDateZulu']}}T{{$node[\"Time1\"].json['todaysTimeZulu']}}\",\"marketplaceIds\":[\"ATVPDKIKX0DER\"]}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        140,
+        -420
+      ],
+      "id": "e5c6cd7f-c76a-4958-83d1-9e89bbd3d5fa",
+      "name": "Report ID"
+    },
+    {
+      "parameters": {
+        "url": "=https://sellingpartnerapi-na.amazon.com/reports/2021-06-30/reports/{{ $json.reportId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$node[\"Get Token1\"].json[\"access_token\"]}}"
+            },
+            {
+              "name": "x-amz-access-token",
+              "value": "={{$node[\"Get Token1\"].json[\"access_token\"]}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        -420
+      ],
+      "id": "d85eb0e1-4b6e-43f4-886a-2d7ce571a8dc",
+      "name": "Report Status"
+    },
+    {
+      "parameters": {
+        "url": "=https://sellingpartnerapi-na.amazon.com/reports/2021-06-30/documents/{{$json.reportDocumentId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$node[\"Get Token1\"].json[\"access_token\"]}}"
+            },
+            {
+              "name": "x-amz-access-token",
+              "value": "={{$node[\"Get Token1\"].json[\"access_token\"]}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        640,
+        -420
+      ],
+      "id": "dc68084e-3247-4f59-98f7-6697b9c94927",
+      "name": "Get Report URL"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        800,
+        -420
+      ],
+      "id": "9b148097-688e-4100-bae3-51612a884850",
+      "name": "Pull Data From URL"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1dx8UMUB0V3NEKxcA775eZ22wlJCdzFqWrPwvp4CEkys",
+          "mode": "list",
+          "cachedResultName": "Amazon Orders",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dx8UMUB0V3NEKxcA775eZ22wlJCdzFqWrPwvp4CEkys/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dx8UMUB0V3NEKxcA775eZ22wlJCdzFqWrPwvp4CEkys/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "amazon-order-id": "={{ $json['amazon-order-id'] }}",
+            "merchant-order-id": "={{ $json['merchant-order-id'] }}",
+            "purchase-date": "={{ $json['purchase-date'] }}",
+            "last-updated-date": "={{ $json['last-updated-date'] }}",
+            "order-status": "={{ $json['order-status'] }}",
+            "fulfillment-channel": "={{ $json['fulfillment-channel'] }}",
+            "sales-channel": "={{ $json['sales-channel'] }}",
+            "ship-service-level": "={{ $json['ship-service-level'] }}",
+            "product-name": "={{ $json['product-name'] }}",
+            "sku": "={{ $json.sku }}",
+            "asin": "={{ $json.asin }}",
+            "item-status": "={{ $json['item-status'] }}",
+            "quantity": "={{ $json.quantity }}",
+            "currency": "={{ $json.currency }}",
+            "item-price": "={{ $json['item-price'] }}",
+            "item-tax": "={{ $json['item-tax'] }}",
+            "shipping-price": "={{ $json['shipping-price'] }}",
+            "shipping-tax": "={{ $json['shipping-tax'] }}",
+            "gift-wrap-price": "={{ $json['gift-wrap-price'] }}",
+            "gift-wrap-tax": "={{ $json['gift-wrap-tax'] }}",
+            "item-promotion-discount": "={{ $json['item-promotion-discount'] }}",
+            "ship-promotion-discount": "={{ $json['ship-promotion-discount'] }}",
+            "ship-city": "={{ $json['ship-city'] }}",
+            "ship-state": "={{ $json['ship-state'] }}",
+            "ship-postal-code": "={{ $json['ship-postal-code'] }}",
+            "ship-country": "={{ $json['ship-country'] }}",
+            "is-business-order": "={{ $json['is-business-order'] }}",
+            "total_price": "={{ $json.total_price }}"
+          },
+          "matchingColumns": [
+            "amazon-order-id"
+          ],
+          "schema": [
+            {
+              "id": "amazon-order-id",
+              "displayName": "amazon-order-id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "merchant-order-id",
+              "displayName": "merchant-order-id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "purchase-date",
+              "displayName": "purchase-date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "last-updated-date",
+              "displayName": "last-updated-date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "order-status",
+              "displayName": "order-status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "fulfillment-channel",
+              "displayName": "fulfillment-channel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "sales-channel",
+              "displayName": "sales-channel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ship-service-level",
+              "displayName": "ship-service-level",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "product-name",
+              "displayName": "product-name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "sku",
+              "displayName": "sku",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "asin",
+              "displayName": "asin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "item-status",
+              "displayName": "item-status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "quantity",
+              "displayName": "quantity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "currency",
+              "displayName": "currency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "item-price",
+              "displayName": "item-price",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "item-tax",
+              "displayName": "item-tax",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "shipping-price",
+              "displayName": "shipping-price",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "shipping-tax",
+              "displayName": "shipping-tax",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "gift-wrap-price",
+              "displayName": "gift-wrap-price",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "gift-wrap-tax",
+              "displayName": "gift-wrap-tax",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "item-promotion-discount",
+              "displayName": "item-promotion-discount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ship-promotion-discount",
+              "displayName": "ship-promotion-discount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ship-city",
+              "displayName": "ship-city",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ship-state",
+              "displayName": "ship-state",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ship-postal-code",
+              "displayName": "ship-postal-code",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ship-country",
+              "displayName": "ship-country",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "is-business-order",
+              "displayName": "is-business-order",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "total_price",
+              "displayName": "total_price",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        1140,
+        -420
+      ],
+      "id": "b7baae97-3800-4c63-b81d-b5b79148c65a",
+      "name": "Append Orders to Sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "IBSllZPSYK4EDII0",
+          "name": "Google Sheets account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// N8N Code Node to parse Amazon Orders TSV data\n// Assumes the raw TSV data is in items[0].json.data or items[0].binary.data\n\n// Get the raw data (adjust path based on your HTTP Request node output)\nlet rawData;\nif (items[0].binary && items[0].binary.data) {\n  // If data comes as binary from HTTP Request\n  rawData = Buffer.from(items[0].binary.data.data, 'base64').toString('utf-8');\n} else if (items[0].json.data) {\n  // If data comes as string\n  rawData = items[0].json.data;\n} else {\n  // If the entire response is the data\n  rawData = JSON.stringify(items[0].json);\n}\n\n// Split into lines and get headers\nconst lines = rawData.trim().split('\\n');\nconst headers = lines[0].split('\\t');\n\n// Parse each data row (skip header row)\nconst orders = [];\nfor (let i = 1; i < lines.length; i++) {\n  if (lines[i].trim() === '') continue; // Skip empty lines\n  \n  const values = lines[i].split('\\t');\n  \n  // Skip invalid orders (sample data, malformed, etc.)\n  const amazonOrderId = values[0] || '';\n  if (amazonOrderId.startsWith('S01-') || amazonOrderId.trim() === '' || values.length < 10) {\n    continue; // Skip this row\n  }\n  \n  const order = {};\n  \n  // Map each value to its corresponding header\n  headers.forEach((header, index) => {\n    let value = values[index] || '';\n    \n    // Clean up common fields and convert types\n    switch(header) {\n      case 'quantity':\n        order[header] = parseInt(value) || 0;\n        break;\n      case 'item-price':\n      case 'item-tax':\n      case 'shipping-price':\n      case 'shipping-tax':\n      case 'gift-wrap-price':\n      case 'gift-wrap-tax':\n      case 'item-promotion-discount':\n      case 'ship-promotion-discount':\n        order[header] = parseFloat(value) || 0;\n        break;\n      case 'purchase-date':\n      case 'last-updated-date':\n        order[header] = value ? new Date(value).toISOString() : null;\n        break;\n      case 'is-business-order':\n      case 'signature-confirmation-recommended':\n        order[header] = value === 'true';\n        break;\n      default:\n        order[header] = value;\n    }\n  });\n  \n  // Add some calculated fields\n  order.total_price = (order['item-price'] || 0) + (order['item-tax'] || 0) + \n                     (order['shipping-price'] || 0) + (order['shipping-tax'] || 0);\n  \n  orders.push(order);\n}\n\n// Return array of order objects\nreturn orders.map(order => ({\n  json: order\n}));\n\n// Alternative: If you want to return as a single item with all orders\n// return [{\n//   json: {\n//     total_orders: orders.length,\n//     orders: orders\n//   }\n// }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        -420
+      ],
+      "id": "c33db4ba-15c1-451d-96f5-384bf53e6ea2",
+      "name": "Parse Orders1"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 31 2 *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -420,
+        380
+      ],
+      "id": "823618f0-8d52-40d6-9bf0-494f3adf9187",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.amazon.com/auth/o2/token",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/x-www-form-urlencoded"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "grant_type",
+              "value": "refresh_token"
+            },
+            {
+              "name": "client_id",
+              "value": "={{$env.AMAZON_ADS_CLIENT_ID}}"
+            },
+            {
+              "name": "client_secret",
+              "value": "={{$env.AMAZON_ADS_CLIENT_SECRET}}"
+            },
+            {
+              "name": "refresh_token",
+              "value": "={{$env.AMAZON_ADS_REFRESH_TOKEN}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -220,
+        380
+      ],
+      "id": "38d42b1d-85e1-422b-9ad5-00eaa73a7de3",
+      "name": "Get Ads Token"
+    },
+    {
+      "parameters": {
+        "url": "https://advertising-api.amazon.com/v2/profiles",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$node[\"Get Ads Token\"].json[\"access_token\"]}}"
+            },
+            {
+              "name": "Amazon-Advertising-API-ClientId",
+              "value": "={{ $env.AMAZON_ADS_CLIENT_ID }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        180,
+        380
+      ],
+      "id": "dff902dc-f46a-4f24-ba30-bc3bd6fe5427",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "url": "https://advertising-api.amazon.com/v2/campaigns",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$node[\"Get Ads Token\"].json[\"access_token\"]}}"
+            },
+            {
+              "name": "Amazon-Advertising-API-ClientId",
+              "value": "={{ $env.AMAZON_ADS_CLIENT_ID }}"
+            },
+            {
+              "name": "Amazon-Advertising-API-Scope",
+              "value": "={{$node[\"Get Correct Ads Account\"].json[\"profileId\"]}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        380
+      ],
+      "id": "cffa959a-dd1c-4a9d-b85b-fdabd796d5ff",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "jsCode": "//Filter items and return only correct ads account\nconst filteredItems = $input.all().filter(item => \n  item.json.accountInfo.name === \"GymArc\"\n);\n\nreturn filteredItems;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        340,
+        380
+      ],
+      "id": "0e80b2cd-f24b-4487-89f3-1627fc09bc30",
+      "name": "Get Correct Ads Account"
+    },
+    {
+      "parameters": {
+        "jsCode": "//Filter items and return only correct ads account\nconst filteredItems = $input.all().filter(item => \n  item.json.name === \"New Campaign - 9/16/2025 16:05:42.858\" ||\n  item.json.name === \"Clean Campaign\" \n);\n\nreturn filteredItems;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        860,
+        380
+      ],
+      "id": "b8a2b5f2-a28d-4cfb-bf76-e9742589fd4d",
+      "name": "Get Correct Campaigns"
+    },
+    {
+      "parameters": {
+        "url": "https://advertising-api.amazon.com/v2/keywords",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "campaignIdFilter",
+              "value": "={{ $json.campaignId }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$node[\"Get Ads Token\"].json[\"access_token\"]}}"
+            },
+            {
+              "name": "Amazon-Advertising-API-ClientId",
+              "value": "={{ $env.AMAZON_ADS_CLIENT_ID }}"
+            },
+            {
+              "name": "Amazon-Advertising-API-Scope",
+              "value": "={{$node[\"Get Correct Ads Account\"].json[\"profileId\"]}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1520,
+        400
+      ],
+      "id": "069e078a-df22-460f-98d8-559bc4d700c3",
+      "name": "Get Keywords"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://advertising-api.amazon.com/sp/targets/bid/recommendations",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "campaignIdFilter",
+              "value": "={{ $json.campaignId }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$node[\"Get Ads Token\"].json[\"access_token\"]}}"
+            },
+            {
+              "name": "Amazon-Advertising-API-ClientId",
+              "value": "={{ $env.AMAZON_ADS_CLIENT_ID }}"
+            },
+            {
+              "name": "Amazon-Advertising-API-Scope",
+              "value": "={{$node[\"Get Correct Ads Account\"].json[\"profileId\"]}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"recommendationType\": {{JSON.stringify($json.recommendationType)}},\n  \"targetingExpressions\": {{JSON.stringify($json.targetingExpressions)}},\n  \"campaignId\": {{JSON.stringify($json.campaignId)}},\n  \"adGroupId\": {{JSON.stringify($json.adGroupId)}}\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2340,
+        400
+      ],
+      "id": "70a8de99-affd-4e73-a7af-ffc350f3613f",
+      "name": "Get Bid Suggestions",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "maxTries": 5
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://advertising-api.amazon.com/v2/keywords/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Amazon-Advertising-API-ClientId",
+              "value": "={{ $env.AMAZON_ADS_CLIENT_ID }}"
+            },
+            {
+              "name": "Amazon-Advertising-API-Scope",
+              "value": "={{$node[\"Get Correct Ads Account\"].json[\"profileId\"]}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$node[\"Get Ads Token\"].json[\"access_token\"]}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "=[\n  {\n    \"keywordId\": {{ $('Get Keywords').item.json.keywordId }},\n    \"adGroupId\": {{ $('Get Keywords').item.json.adGroupId }},\n    \"campaignId\": {{ $('Get Keywords').item.json.campaignId }},\n    \"state\": \"{{ $('Get Keywords').item.json.state }}\",\n    \"bid\": {{ $json.bid }}\n  }\n]\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2900,
+        400
+      ],
+      "id": "196e7be4-115a-42ff-9752-fdffb308be6b",
+      "name": "Get Keywords1",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const keywords = $items(\"Get Keywords\").map(item => item.json);\nconst recs = $json.bidRecommendations.flatMap(r => r.bidRecommendationsForTargetingExpressions);\n\nconst updates = [];\n\nfor (const rec of recs) {\n  const keywordText = rec.targetingExpression.value;\n  const suggestedBid2 = rec.bidValues[2]?.suggestedBid;\n\n  const kw = keywords.find(k => k.keywordText.toLowerCase() === keywordText.toLowerCase());\n  if (kw && suggestedBid2) {\n    updates.push({\n      keywordId: kw.keywordId,\n      bid: +(suggestedBid2 + 0.30).toFixed(2)\n    });\n  }\n}\n\nreturn updates;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2700,
+        400
+      ],
+      "id": "ef3e1542-90c4-47d6-913c-9af0b3a15a99",
+      "name": "Get Adjusted Bid"
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        380
+      ],
+      "id": "056ad04a-02d8-44c9-a996-8dbbf3962dfc",
+      "name": "Wait1",
+      "webhookId": "093233b6-f0df-4c85-9ade-601fefa33f47"
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        500,
+        380
+      ],
+      "id": "591a3b67-fe3c-45bb-8010-4f4cca7dd043",
+      "name": "Wait2",
+      "webhookId": "093233b6-f0df-4c85-9ade-601fefa33f47"
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1340,
+        400
+      ],
+      "id": "9d2e088e-1d54-4be3-9bbe-d747111a438b",
+      "name": "Wait3",
+      "webhookId": "093233b6-f0df-4c85-9ade-601fefa33f47"
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2180,
+        400
+      ],
+      "id": "396e28f3-b2c7-4418-b52b-b77a2e3af189",
+      "name": "Wait4",
+      "webhookId": "093233b6-f0df-4c85-9ade-601fefa33f47"
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2520,
+        400
+      ],
+      "id": "933c0fdd-dee4-4394-bf43-98df1dab5f78",
+      "name": "Wait5",
+      "webhookId": "093233b6-f0df-4c85-9ade-601fefa33f47"
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": "={{ $prevNode.name === 'Get Keywords'}}"
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1720,
+        400
+      ],
+      "id": "e2343e1a-e845-4d41-b443-2ef50c76a324",
+      "name": "Loop Over Keywords"
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": "={{ $prevNode.name === 'Get Correct Campaigns'}}"
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1080,
+        380
+      ],
+      "id": "a2bae4ae-d865-4f02-a5b4-63fbb3461be3",
+      "name": "Loop Over Campaigns"
+    },
+    {
+      "parameters": {
+        "jsCode": "const keywords = $node[\"Get Keywords\"].json;\nconst keywordArray = Array.isArray(keywords) ? keywords : [keywords];\n\n// Group keywords by ad group\nconst keywordsByAdGroup = {};\nkeywordArray.forEach(keyword => {\n  const adGroupId = keyword.adGroupId.toString();\n  if (!keywordsByAdGroup[adGroupId]) {\n    keywordsByAdGroup[adGroupId] = {\n      adGroupId: adGroupId,\n      campaignId: keyword.campaignId.toString(),\n      keywords: []\n    };\n  }\n  keywordsByAdGroup[adGroupId].keywords.push(keyword);\n});\n\n// Create V3 API requests for each ad group in the exact format Amazon expects\nconst requests = Object.values(keywordsByAdGroup).map(adGroup => {\n  \n  // Build targeting expressions array\n  const targetingExpressions = adGroup.keywords.map(keyword => {\n    let matchType = 'KEYWORD_BROAD_MATCH'; // default\n    \n    switch(keyword.matchType?.toLowerCase()) {\n      case 'exact':\n        matchType = 'KEYWORD_EXACT_MATCH';\n        break;\n      case 'phrase':\n        matchType = 'KEYWORD_PHRASE_MATCH';\n        break;\n      case 'broad':\n      default:\n        matchType = 'KEYWORD_BROAD_MATCH';\n        break;\n    }\n    \n    return {\n      type: matchType,\n      value: keyword.keywordText\n    };\n  });\n  \n  // Return exact format Amazon expects\n  return {\n    json: {\n      recommendationType: \"BIDS_FOR_EXISTING_AD_GROUP\",\n      targetingExpressions: targetingExpressions.slice(0, 100), // Max 100 per request\n      campaignId: adGroup.campaignId,\n      adGroupId: adGroup.adGroupId\n    }\n  };\n});\n\nconsole.log(`Created ${requests.length} V3 bid recommendation requests`);\nconsole.log('Sample request format:', JSON.stringify(requests[0]?.json, null, 2));\n\nreturn requests;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        400
+      ],
+      "id": "d539e927-4f96-4f18-bffe-7ceb78677b43",
+      "name": "Get Keyword Info"
+    },
+    {
+      "parameters": {
+        "content": "## Update Bids\n",
+        "height": 340,
+        "width": 3840
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -540,
+        280
+      ],
+      "typeVersion": 1,
+      "id": "f09f98b7-51ef-48e4-ac6b-902ef2fffc2b",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3060,
+        400
+      ],
+      "id": "3d407ba9-0877-45f2-bd06-0ae935785a47",
+      "name": "Wait6",
+      "webhookId": "791ce027-f1ac-4d81-9a05-f8105f83efcd"
+    },
+    {
+      "parameters": {
+        "content": "## Track Profit & Orders\n",
+        "height": 480,
+        "width": 1900,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -540,
+        -720
+      ],
+      "typeVersion": 1,
+      "id": "a0aa4a96-7b62-4637-93ed-43a20ecf3dd3",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Get Orders Ready to Review\n",
+        "height": 480,
+        "width": 2040,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -540,
+        -220
+      ],
+      "typeVersion": 1,
+      "id": "5d502821-b8cd-490e-8ffb-bfb01e5a6cb2",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 31 2 *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -460,
+        -160
+      ],
+      "id": "46ae105f-ef91-4fb9-ad61-315d145afd00",
+      "name": "Schedule Trigger5"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.amazon.com/auth/o2/token",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/x-www-form-urlencoded"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "grant_type",
+              "value": "refresh_token"
+            },
+            {
+              "name": "refresh_token",
+              "value": "={{$env.AMAZON_REFRESH_TOKEN}}"
+            },
+            {
+              "name": "client_id",
+              "value": "={{$env.AMAZON_CLIENT_ID}}"
+            },
+            {
+              "name": "client_secret",
+              "value": "={{$env.AMAZON_CLIENT_SECRET}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -420,
+        80
+      ],
+      "id": "79887524-3339-43cb-b7de-3ecdfc9f4281",
+      "name": "Get Token2"
+    },
+    {
+      "parameters": {
+        "url": "https://sellingpartnerapi-na.amazon.com/orders/v0/orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "MarketplaceIds",
+              "value": "ATVPDKIKX0DER"
+            },
+            {
+              "name": "OrderStatuses",
+              "value": "Shipped"
+            },
+            {
+              "name": "CreatedAfter",
+              "value": "={{ $now.minus(30, 'days').toISO() }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$node[\"Get Token2\"].json[\"access_token\"]}}"
+            },
+            {
+              "name": "x-amz-access-token",
+              "value": "={{$node[\"Get Token2\"].json[\"access_token\"]}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -240,
+        -160
+      ],
+      "id": "e37ab7dd-7e48-4ade-ace6-b7268f693884",
+      "name": "Get Orders1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Take the big \"Orders\" array from Get Orders1 and return one item per order\n\nconst orders = items[0].json.payload?.Orders || [];\n\nreturn orders.map(order => ({ json: order }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        80
+      ],
+      "id": "317c7529-5786-481c-afa7-6ed037f087f5",
+      "name": "Split into Objects"
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst fiveDaysAgo = new Date(now);\nfiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);\n\nconst thirtyDaysAgo = new Date(now);\nthirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);\n\nreturn items.filter(item => {\n  const order = item.json;\n\n  // 1. Must be shipped\n  if (order.OrderStatus !== 'Shipped') return false;\n\n  // 2. Parse PurchaseDate\n  const purchaseDate = new Date(order.PurchaseDate);\n  if (isNaN(purchaseDate)) return false;\n\n  // 3. Must be between 5 and 30 days old\n  if (!(purchaseDate <= fiveDaysAgo && purchaseDate >= thirtyDaysAgo)) return false;\n\n  // 4. Skip replacement orders\n  if (order.IsReplacementOrder === true) return false;\n\n  // 5. Skip business orders\n  if (order.IsBusinessOrder === true) return false;\n\n  return true;\n});\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        -160
+      ],
+      "id": "56b19f01-ac11-4ac1-8a3e-1342ff29e267",
+      "name": "Filter for Solicitation Ready"
+    },
+    {
+      "parameters": {
+        "jsCode": "const nextPage = $items(\"Get Orders1\")[0].json.payload?.NextToken || null;\nreturn {\n  nextPage\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        -160
+      ],
+      "id": "fbc2d677-acde-4124-9e7f-c2ee6b917eb0",
+      "name": "Get Next Token"
+    },
+    {
+      "parameters": {
+        "url": "=https://sellingpartnerapi-na.amazon.com/orders/v0/orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "MarketplaceIds",
+              "value": "ATVPDKIKX0DER"
+            },
+            {
+              "name": "NextToken",
+              "value": "={{ $json.nextPage }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$node[\"Get Token2\"].json[\"access_token\"]}}"
+            },
+            {
+              "name": "x-amz-access-token",
+              "value": "={{$node[\"Get Token2\"].json[\"access_token\"]}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        600,
+        -160
+      ],
+      "id": "a9c7bd66-88a1-4633-961a-d66cc2030ec1",
+      "name": "Get Orders2"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Take the big \"Orders\" array from Get Orders1 and return one item per order\n\nconst orders = items[0].json.payload?.Orders || [];\n\nreturn orders.map(order => ({ json: order }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        760,
+        -160
+      ],
+      "id": "4579e966-e558-45c0-b29f-4531f90a1f83",
+      "name": "Split into Objects1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst fiveDaysAgo = new Date(now);\nfiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);\n\nconst thirtyDaysAgo = new Date(now);\nthirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);\n\nreturn items.filter(item => {\n  const order = item.json;\n\n  // 1. Must be shipped\n  if (order.OrderStatus !== 'Shipped') return false;\n\n  // 2. Parse PurchaseDate\n  const purchaseDate = new Date(order.PurchaseDate);\n  if (isNaN(purchaseDate)) return false;\n\n  // 3. Must be between 5 and 30 days old\n  if (!(purchaseDate <= fiveDaysAgo && purchaseDate >= thirtyDaysAgo)) return false;\n\n  // 4. Skip replacement orders\n  if (order.IsReplacementOrder === true) return false;\n\n  // 5. Skip business orders\n  if (order.IsBusinessOrder === true) return false;\n\n  return true;\n});\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        920,
+        -160
+      ],
+      "id": "12dc35a0-42a0-4729-aef5-92d8ee2df620",
+      "name": "Filter for Solicitation Ready1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "da9cf31d-6e0e-4044-a411-3d3b1db1d0d7",
+              "name": "nextPage",
+              "value": "={{ $json.nextPage }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        420,
+        -160
+      ],
+      "id": "b754b3eb-bc71-4c2e-bf4b-d64dc4c70081",
+      "name": "Set Token"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "928894d0-2876-4996-9b1e-3d365b903771",
+              "leftValue": "={{ $('Set Token').first().json.nextPage }}",
+              "rightValue": "={{ null }}",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1280,
+        -160
+      ],
+      "id": "68a0acf9-928e-4ee7-88b5-9dcc61cf95ae",
+      "name": "If There's Another Page"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e348efff-8d75-4333-863f-276155325b02",
+              "name": "nextPage",
+              "value": "={{ $('Get Orders2').item.json.payload.NextToken }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        560,
+        40
+      ],
+      "id": "f89dd66d-1bfa-4115-8d5b-d7180deb924b",
+      "name": "Get New Token"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1dQBqu9J4mMLSHfPIW03mfzJqxHzqDVZ9BN9QqWBNfFI",
+          "mode": "list",
+          "cachedResultName": "Amazon Reviews",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dQBqu9J4mMLSHfPIW03mfzJqxHzqDVZ9BN9QqWBNfFI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dQBqu9J4mMLSHfPIW03mfzJqxHzqDVZ9BN9QqWBNfFI/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "BuyerInfo": "={{ $json.BuyerInfo }}",
+            "AmazonOrderId": "={{ $json.AmazonOrderId }}",
+            "EarliestShipDate": "={{ $json.EarliestShipDate }}",
+            "SalesChannel": "={{ $json.SalesChannel }}",
+            "OrderStatus": "={{ $json.OrderStatus }}",
+            "NumberOfItemsShipped": "={{ $json.NumberOfItemsShipped }}",
+            "OrderType": "={{ $json.OrderType }}",
+            "IsPremiumOrder": "={{ $json.IsPremiumOrder }}",
+            "IsPrime": "={{ $json.IsPrime }}",
+            "FulfillmentChannel": "={{ $json.FulfillmentChannel }}",
+            "NumberOfItemsUnshipped": "={{ $json.NumberOfItemsUnshipped }}",
+            "HasRegulatedItems": "={{ $json.HasRegulatedItems }}",
+            "IsReplacementOrder": "={{ $json.IsReplacementOrder }}",
+            "IsSoldByAB": "={{ $json.IsSoldByAB }}",
+            "LatestShipDate": "={{ $json.LatestShipDate }}",
+            "ShipServiceLevel": "={{ $json.ShipServiceLevel }}",
+            "IsISPU": "={{ $json.IsISPU }}",
+            "MarketplaceId": "={{ $json.MarketplaceId }}",
+            "PurchaseDate": "={{ $json.PurchaseDate }}",
+            "ShippingAddress": "={{ $json.ShippingAddress }}",
+            "IsAccessPointOrder": "={{ $json.IsAccessPointOrder }}",
+            "SellerOrderId": "={{ $json.SellerOrderId }}",
+            "PaymentMethod": "={{ $json.PaymentMethod }}",
+            "IsBusinessOrder": "={{ $json.IsBusinessOrder }}",
+            "OrderTotal": "={{ $json.OrderTotal }}",
+            "PaymentMethodDetails": "={{ $json.PaymentMethodDetails }}",
+            "IsGlobalExpressEnabled": "={{ $json.IsGlobalExpressEnabled }}",
+            "LastUpdateDate": "={{ $json.LastUpdateDate }}",
+            "ShipmentServiceLevelCategory": "={{ $json.ShipmentServiceLevelCategory }}"
+          },
+          "matchingColumns": [
+            "AmazonOrderId"
+          ],
+          "schema": [
+            {
+              "id": "BuyerInfo",
+              "displayName": "BuyerInfo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "AmazonOrderId",
+              "displayName": "AmazonOrderId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "EarliestShipDate",
+              "displayName": "EarliestShipDate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "SalesChannel",
+              "displayName": "SalesChannel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "OrderStatus",
+              "displayName": "OrderStatus",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "NumberOfItemsShipped",
+              "displayName": "NumberOfItemsShipped",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "OrderType",
+              "displayName": "OrderType",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "IsPremiumOrder",
+              "displayName": "IsPremiumOrder",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "IsPrime",
+              "displayName": "IsPrime",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "FulfillmentChannel",
+              "displayName": "FulfillmentChannel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "NumberOfItemsUnshipped",
+              "displayName": "NumberOfItemsUnshipped",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "HasRegulatedItems",
+              "displayName": "HasRegulatedItems",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "IsReplacementOrder",
+              "displayName": "IsReplacementOrder",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "IsSoldByAB",
+              "displayName": "IsSoldByAB",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "LatestShipDate",
+              "displayName": "LatestShipDate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ShipServiceLevel",
+              "displayName": "ShipServiceLevel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "IsISPU",
+              "displayName": "IsISPU",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "MarketplaceId",
+              "displayName": "MarketplaceId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "PurchaseDate",
+              "displayName": "PurchaseDate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ShippingAddress",
+              "displayName": "ShippingAddress",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "IsAccessPointOrder",
+              "displayName": "IsAccessPointOrder",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "SellerOrderId",
+              "displayName": "SellerOrderId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "PaymentMethod",
+              "displayName": "PaymentMethod",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "IsBusinessOrder",
+              "displayName": "IsBusinessOrder",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "OrderTotal",
+              "displayName": "OrderTotal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "PaymentMethodDetails",
+              "displayName": "PaymentMethodDetails",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "IsGlobalExpressEnabled",
+              "displayName": "IsGlobalExpressEnabled",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "LastUpdateDate",
+              "displayName": "LastUpdateDate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ShipmentServiceLevelCategory",
+              "displayName": "ShipmentServiceLevelCategory",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        1100,
+        -160
+      ],
+      "id": "3e41adf9-29c5-438b-a7df-1a3d0d88e633",
+      "name": "Add Valid Orders",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "IBSllZPSYK4EDII0",
+          "name": "Google Sheets account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1dQBqu9J4mMLSHfPIW03mfzJqxHzqDVZ9BN9QqWBNfFI",
+          "mode": "list",
+          "cachedResultName": "Amazon Reviews",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dQBqu9J4mMLSHfPIW03mfzJqxHzqDVZ9BN9QqWBNfFI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dQBqu9J4mMLSHfPIW03mfzJqxHzqDVZ9BN9QqWBNfFI/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "BuyerInfo": "={{ $json.BuyerInfo }}",
+            "AmazonOrderId": "={{ $json.AmazonOrderId }}",
+            "EarliestShipDate": "={{ $json.EarliestShipDate }}",
+            "SalesChannel": "={{ $json.SalesChannel }}",
+            "OrderStatus": "={{ $json.OrderStatus }}",
+            "NumberOfItemsShipped": "={{ $json.NumberOfItemsShipped }}",
+            "OrderType": "={{ $json.OrderType }}",
+            "IsPremiumOrder": "={{ $json.IsPremiumOrder }}",
+            "IsPrime": "={{ $json.IsPrime }}",
+            "FulfillmentChannel": "={{ $json.FulfillmentChannel }}",
+            "NumberOfItemsUnshipped": "={{ $json.NumberOfItemsUnshipped }}",
+            "HasRegulatedItems": "={{ $json.HasRegulatedItems }}",
+            "IsReplacementOrder": "={{ $json.IsReplacementOrder }}",
+            "IsSoldByAB": "={{ $json.IsSoldByAB }}",
+            "LatestShipDate": "={{ $json.LatestShipDate }}",
+            "ShipServiceLevel": "={{ $json.ShipServiceLevel }}",
+            "IsISPU": "={{ $json.IsISPU }}",
+            "MarketplaceId": "={{ $json.MarketplaceId }}",
+            "PurchaseDate": "={{ $json.PurchaseDate }}",
+            "ShippingAddress": "={{ $json.ShippingAddress }}",
+            "IsAccessPointOrder": "={{ $json.IsAccessPointOrder }}",
+            "SellerOrderId": "={{ $json.SellerOrderId }}",
+            "PaymentMethod": "={{ $json.PaymentMethod }}",
+            "IsBusinessOrder": "={{ $json.IsBusinessOrder }}",
+            "OrderTotal": "={{ $json.OrderTotal }}",
+            "PaymentMethodDetails": "={{ $json.PaymentMethodDetails }}",
+            "IsGlobalExpressEnabled": "={{ $json.IsGlobalExpressEnabled }}",
+            "LastUpdateDate": "={{ $json.LastUpdateDate }}",
+            "ShipmentServiceLevelCategory": "={{ $json.ShipmentServiceLevelCategory }}"
+          },
+          "matchingColumns": [
+            "AmazonOrderId"
+          ],
+          "schema": [
+            {
+              "id": "BuyerInfo",
+              "displayName": "BuyerInfo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "AmazonOrderId",
+              "displayName": "AmazonOrderId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "EarliestShipDate",
+              "displayName": "EarliestShipDate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "SalesChannel",
+              "displayName": "SalesChannel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "OrderStatus",
+              "displayName": "OrderStatus",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "NumberOfItemsShipped",
+              "displayName": "NumberOfItemsShipped",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "OrderType",
+              "displayName": "OrderType",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "IsPremiumOrder",
+              "displayName": "IsPremiumOrder",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "IsPrime",
+              "displayName": "IsPrime",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "FulfillmentChannel",
+              "displayName": "FulfillmentChannel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "NumberOfItemsUnshipped",
+              "displayName": "NumberOfItemsUnshipped",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "HasRegulatedItems",
+              "displayName": "HasRegulatedItems",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "IsReplacementOrder",
+              "displayName": "IsReplacementOrder",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "IsSoldByAB",
+              "displayName": "IsSoldByAB",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "LatestShipDate",
+              "displayName": "LatestShipDate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ShipServiceLevel",
+              "displayName": "ShipServiceLevel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "IsISPU",
+              "displayName": "IsISPU",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "MarketplaceId",
+              "displayName": "MarketplaceId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "PurchaseDate",
+              "displayName": "PurchaseDate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ShippingAddress",
+              "displayName": "ShippingAddress",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "IsAccessPointOrder",
+              "displayName": "IsAccessPointOrder",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "SellerOrderId",
+              "displayName": "SellerOrderId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "PaymentMethod",
+              "displayName": "PaymentMethod",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "IsBusinessOrder",
+              "displayName": "IsBusinessOrder",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "OrderTotal",
+              "displayName": "OrderTotal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "PaymentMethodDetails",
+              "displayName": "PaymentMethodDetails",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "IsGlobalExpressEnabled",
+              "displayName": "IsGlobalExpressEnabled",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "LastUpdateDate",
+              "displayName": "LastUpdateDate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ShipmentServiceLevelCategory",
+              "displayName": "ShipmentServiceLevelCategory",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        120,
+        80
+      ],
+      "id": "ce27af96-4d34-4948-b121-5b87be85ea3a",
+      "name": "Add Valid Orders1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "IBSllZPSYK4EDII0",
+          "name": "Google Sheets account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 1,
+        "unit": "hours"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        320,
+        -420
+      ],
+      "id": "19821d9e-7d0f-42d5-ac58-f25e8b771e1d",
+      "name": "Wait",
+      "webhookId": "7724356c-a4d1-4bc6-a1c6-6e20930a91d3"
+    },
+    {
+      "parameters": {
+        "jsCode": "// This will cause the node to output no data\nreturn [];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        60
+      ],
+      "id": "6fb8a798-99a0-4034-982f-7b6a3211bbac",
+      "name": "Destroy Input",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1dQBqu9J4mMLSHfPIW03mfzJqxHzqDVZ9BN9QqWBNfFI",
+          "mode": "list",
+          "cachedResultName": "Amazon Reviews",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dQBqu9J4mMLSHfPIW03mfzJqxHzqDVZ9BN9QqWBNfFI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dQBqu9J4mMLSHfPIW03mfzJqxHzqDVZ9BN9QqWBNfFI/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        1820,
+        60
+      ],
+      "id": "30849e26-a69d-4f06-ac23-8ccecc4121ff",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "IBSllZPSYK4EDII0",
+          "name": "Google Sheets account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2040,
+        -180
+      ],
+      "id": "cc50f51e-36b8-4ca1-92bb-9bfb5f964a93",
+      "name": "Loop Over Items1"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 31 2 *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        1600,
+        -160
+      ],
+      "id": "84e429b8-7cd3-45a5-9a9a-b04f40c8fa04",
+      "name": "Schedule Trigger6"
+    },
+    {
+      "parameters": {
+        "url": "=https://sellingpartnerapi-na.amazon.com/solicitations/v1/orders/{{ $json.AmazonOrderId }}",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "marketplaceIds",
+              "value": "ATVPDKIKX0DER"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$node[\"Get Token3\"].json[\"access_token\"]}}"
+            },
+            {
+              "name": "x-amz-access-token",
+              "value": "={{$node[\"Get Token3\"].json[\"access_token\"]}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2460,
+        -20
+      ],
+      "id": "047cd621-9d1c-41d8-99b7-ec0ad5318d3e",
+      "name": "Get Orders4"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.amazon.com/auth/o2/token",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/x-www-form-urlencoded"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "grant_type",
+              "value": "refresh_token"
+            },
+            {
+              "name": "refresh_token",
+              "value": "={{$env.AMAZON_REFRESH_TOKEN}}"
+            },
+            {
+              "name": "client_id",
+              "value": "={{$env.AMAZON_CLIENT_ID}}"
+            },
+            {
+              "name": "client_secret",
+              "value": "={{$env.AMAZON_CLIENT_SECRET}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1620,
+        60
+      ],
+      "id": "73072051-6eb7-4315-a5a5-178414d86a62",
+      "name": "Get Token3"
+    },
+    {
+      "parameters": {
+        "jsCode": "// This will cause the node to output no data\nreturn [];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        -160
+      ],
+      "id": "5cba016e-ae72-4dcf-b4ba-786455a58ab5",
+      "name": "Destroy Input1",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sellingpartnerapi-na.amazon.com{{$json.solicitationPath}} \n",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "marketplaceIds",
+              "value": "ATVPDKIKX0DER"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$node[\"Get Token3\"].json[\"access_token\"]}}"
+            },
+            {
+              "name": "x-amz-access-token",
+              "value": "={{$node[\"Get Token3\"].json[\"access_token\"]}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "x-amz-date",
+              "value": "={{$now.format('yyyyMMdd\\'T\\'HHmmss\\'Z\\'')}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        20
+      ],
+      "id": "1997e879-713a-462e-9a93-ab2245dd31f1",
+      "name": "Get Orders5"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "265556cc-58d9-4286-b588-d72d77497829",
+              "leftValue": "={{ $json._embedded?.actions?.[0]?._embedded?.schema?.disabled === false }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2620,
+        -20
+      ],
+      "id": "00df61e1-812b-4696-9910-fc5a1c3a2686",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b6a332bc-a05f-494d-b9bc-674870758b2d",
+              "name": "=solicitationPath",
+              "value": "={{ $json._embedded.actions[0]._links.self.href }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2820,
+        20
+      ],
+      "id": "f2370430-4fc3-4496-aa5c-0207f9ae4845",
+      "name": "Set Solicitation Path"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2280,
+        -20
+      ],
+      "id": "a9acf6e0-9278-478d-ad03-69bd6c4ad1bd",
+      "name": "Wait7",
+      "webhookId": "e6d99574-c69f-49ff-a282-bc34d1113480"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2980,
+        20
+      ],
+      "id": "aa0c1b93-806e-464a-831f-a5180416b429",
+      "name": "Wait8",
+      "webhookId": "51e3d069-b47d-4a57-b0a4-31d9f02528ba"
+    },
+    {
+      "parameters": {
+        "content": "## Request Reviews",
+        "height": 480,
+        "width": 1780,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1520,
+        -220
+      ],
+      "typeVersion": 1,
+      "id": "a102bcd2-02af-4512-94aa-31498fb2aa0a",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "operation": "clear",
+        "documentId": {
+          "__rl": true,
+          "value": "1dQBqu9J4mMLSHfPIW03mfzJqxHzqDVZ9BN9QqWBNfFI",
+          "mode": "list",
+          "cachedResultName": "Amazon Reviews",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dQBqu9J4mMLSHfPIW03mfzJqxHzqDVZ9BN9QqWBNfFI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dQBqu9J4mMLSHfPIW03mfzJqxHzqDVZ9BN9QqWBNfFI/edit#gid=0"
+        },
+        "keepFirstRow": true
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        2280,
+        -180
+      ],
+      "id": "07624e1b-34b1-41c7-9026-0d581a33e38c",
+      "name": "Clear sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "IBSllZPSYK4EDII0",
+          "name": "Google Sheets account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Update Price",
+        "height": 480,
+        "width": 920,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1380,
+        -720
+      ],
+      "typeVersion": 1,
+      "id": "1f242317-0e87-4362-9667-9f4abe9a7378",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 31 2 *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        1540,
+        -640
+      ],
+      "id": "f468edef-8018-44f1-86a4-d2dbd99d3580",
+      "name": "Schedule Trigger7"
+    },
+    {
+      "parameters": {
+        "content": "## Inventory Monitor\n",
+        "height": 480,
+        "width": 980,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2320,
+        -720
+      ],
+      "typeVersion": 1,
+      "id": "7179833f-4113-4965-8e7b-19077aa59779",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.amazon.com/auth/o2/token",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/x-www-form-urlencoded"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "grant_type",
+              "value": "refresh_token"
+            },
+            {
+              "name": "refresh_token",
+              "value": "={{$env.AMAZON_REFRESH_TOKEN}}"
+            },
+            {
+              "name": "client_id",
+              "value": "={{$env.AMAZON_CLIENT_ID}}"
+            },
+            {
+              "name": "client_secret",
+              "value": "={{$env.AMAZON_CLIENT_SECRET}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        -640
+      ],
+      "id": "300ac966-91b1-4e33-a9f5-70751adf456f",
+      "name": "Get Token4"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 31 2 *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        1540,
+        -440
+      ],
+      "id": "f661114b-7956-49e3-a345-dbce2dd63d49",
+      "name": "Schedule Trigger8"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.amazon.com/auth/o2/token",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/x-www-form-urlencoded"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "grant_type",
+              "value": "refresh_token"
+            },
+            {
+              "name": "refresh_token",
+              "value": "={{$env.AMAZON_REFRESH_TOKEN}}"
+            },
+            {
+              "name": "client_id",
+              "value": "={{$env.AMAZON_CLIENT_ID}}"
+            },
+            {
+              "name": "client_secret",
+              "value": "={{$env.AMAZON_CLIENT_SECRET}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        -440
+      ],
+      "id": "fa8fbe43-c917-4dcb-9cc1-b22cc130d23a",
+      "name": "Get Token5"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://sellingpartnerapi-na.amazon.com/listings/2020-09-01/items/{{$env.AMAZON_SELLER_ID}}/{{ $env.AMAZON_SKU_1 }}",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "marketplaceIds",
+              "value": "ATVPDKIKX0DER"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$node[\"Get Token4\"].json[\"access_token\"]}}"
+            },
+            {
+              "name": "x-amz-access-token",
+              "value": "={{$node[\"Get Token4\"].json[\"access_token\"]}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"productType\": \"NUTRITIONAL_SUPPLEMENT\",\n  \"patches\": [\n    {\n      \"op\": \"replace\",\n      \"path\": \"/attributes/purchasable_offer\",\n      \"value\": [\n        {\n          \"marketplaceId\": \"ATVPDKIKX0DER\",\n          \"currency\": \"USD\",\n          \"our_price\": [\n            {\n              \"schedule\": [\n                {\n                  \"value_with_tax\": 14.99\n                }\n              ]\n            }\n          ],\n          \"business_price\": [\n            {\n              \"schedule\": [\n                {\n                  \"value_with_tax\": 13.99\n                }\n              ]\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1960,
+        -640
+      ],
+      "id": "bed05204-f8cf-4236-a898-a6dfea271d22",
+      "name": "Update Price"
+    },
+    {
+      "parameters": {
+        "url": "=https://sellingpartnerapi-na.amazon.com/catalog/2022-04-01/items/{{$env.AMAZON_ASIN_1}}",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "marketplaceIds",
+              "value": "ATVPDKIKX0DER"
+            },
+            {
+              "name": "includedData",
+              "value": "productTypes"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$node[\"Get Token5\"].json[\"access_token\"]}}"
+            },
+            {
+              "name": "x-amz-access-token",
+              "value": "={{$node[\"Get Token5\"].json[\"access_token\"]}}"
+            },
+            {
+              "name": "x-amz-date",
+              "value": "={{$now.format('yyyyMMdd\\'T\\'HHmmss\\'Z\\'')}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1960,
+        -440
+      ],
+      "id": "3740c933-98bc-41d1-bd5f-ddc7cbb73c7c",
+      "name": "Get Listing Attributes"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 31 2 *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        2420,
+        -640
+      ],
+      "id": "b76e2395-6f34-4ed6-9d43-2d4b719fd62a",
+      "name": "Schedule Trigger9"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.amazon.com/auth/o2/token",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/x-www-form-urlencoded"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "grant_type",
+              "value": "refresh_token"
+            },
+            {
+              "name": "refresh_token",
+              "value": "={{$env.AMAZON_REFRESH_TOKEN}}"
+            },
+            {
+              "name": "client_id",
+              "value": "={{$env.AMAZON_CLIENT_ID}}"
+            },
+            {
+              "name": "client_secret",
+              "value": "={{$env.AMAZON_CLIENT_SECRET}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2440,
+        -420
+      ],
+      "id": "c5c42db7-cfab-44c5-a0f3-2420263d1a60",
+      "name": "Get Token6"
+    },
+    {
+      "parameters": {
+        "url": "=https://sellingpartnerapi-na.amazon.com/fba/inventory/v1/summaries",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "marketplaceIds",
+              "value": "ATVPDKIKX0DER"
+            },
+            {
+              "name": "granularityType",
+              "value": "Marketplace"
+            },
+            {
+              "name": "granularityId",
+              "value": "ATVPDKIKX0DER"
+            },
+            {
+              "name": "details",
+              "value": "true"
+            },
+            {
+              "name": "sellerSku",
+              "value": "GJ-XPKI-P3E8"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$node[\"Get Token6\"].json[\"access_token\"]}}"
+            },
+            {
+              "name": "x-amz-access-token",
+              "value": "={{$node[\"Get Token6\"].json[\"access_token\"]}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2660,
+        -640
+      ],
+      "id": "b119b27e-7b95-444f-a8c9-5501bd2d1089",
+      "name": "Get Inventory"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "17e6f3f8-b405-42c7-9ac4-8b2d4c85bf4d",
+              "leftValue": "={{ $json.payload.inventorySummaries[0].inventoryDetails.fulfillableQuantity }}",
+              "rightValue": 1600,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2660,
+        -420
+      ],
+      "id": "ee84d4d8-2420-4bec-9efc-046e3b70fd6e",
+      "name": "If less than 500"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $env.EMAIL }}",
+        "subject": "={{ $node[\"Get Inventory\"].json[\"payload\"]['inventorySummaries'][0]['inventoryDetails'][\"fulfillableQuantity\"]}} INVENTORY LEFT FOR {{ $node[\"Get Inventory\"].json[\"payload\"]['inventorySummaries'][0][\"asin\"]}}",
+        "message": "CONTACT SUPPLIER TO RESTOCK",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        3080,
+        -640
+      ],
+      "id": "11936484-0c5f-497a-a145-8fe3613cc1ff",
+      "name": "Email Restock Reminder",
+      "webhookId": "320995f3-79d0-4b4e-96d1-db8a89042f82",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "ga5NORFiL0RHpOMb",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1TTheHigRcskKr1Zz9yhtoe6Pkg9Da4dtpWGILINevNw",
+          "mode": "list",
+          "cachedResultName": "Amazon Inventory",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1TTheHigRcskKr1Zz9yhtoe6Pkg9Da4dtpWGILINevNw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1TTheHigRcskKr1Zz9yhtoe6Pkg9Da4dtpWGILINevNw/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ProductName": "={{ $json.payload.inventorySummaries[0].productName }}",
+            "ProductASIN": "={{ $json.payload.inventorySummaries[0].asin }}",
+            "InventoryCount": "={{ $json.payload.inventorySummaries[0].inventoryDetails.fulfillableQuantity }}",
+            "TimeStamp": "={{ $now.setZone(\"America/Chicago\").toISO() }}"
+          },
+          "matchingColumns": [
+            "ProductASIN"
+          ],
+          "schema": [
+            {
+              "id": "ProductASIN",
+              "displayName": "ProductASIN",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ProductName",
+              "displayName": "ProductName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "InventoryCount",
+              "displayName": "InventoryCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "TimeStamp",
+              "displayName": "TimeStamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        2880,
+        -420
+      ],
+      "id": "754158d3-9483-4c23-af05-92b0fdcb1bc9",
+      "name": "Log Inventory",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "IBSllZPSYK4EDII0",
+          "name": "Google Sheets account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1TTheHigRcskKr1Zz9yhtoe6Pkg9Da4dtpWGILINevNw",
+          "mode": "list",
+          "cachedResultName": "Amazon Inventory",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1TTheHigRcskKr1Zz9yhtoe6Pkg9Da4dtpWGILINevNw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1TTheHigRcskKr1Zz9yhtoe6Pkg9Da4dtpWGILINevNw/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ProductName": "={{ $json.payload.inventorySummaries[0].productName }}",
+            "ProductASIN": "={{ $json.payload.inventorySummaries[0].asin }}",
+            "InventoryCount": "={{ $json.payload.inventorySummaries[0].inventoryDetails.fulfillableQuantity }}",
+            "TimeStamp": "={{ $now.setZone(\"America/Chicago\").toISO() }}"
+          },
+          "matchingColumns": [
+            "ProductASIN"
+          ],
+          "schema": [
+            {
+              "id": "ProductASIN",
+              "displayName": "ProductASIN",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ProductName",
+              "displayName": "ProductName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "InventoryCount",
+              "displayName": "InventoryCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "TimeStamp",
+              "displayName": "TimeStamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        2880,
+        -640
+      ],
+      "id": "dd55e1ba-29ac-42a1-b83d-7baf50d223ef",
+      "name": "Log Inventory1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "IBSllZPSYK4EDII0",
+          "name": "Google Sheets account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "# Amazon Seller Account Manager\n## Author: Matthew Washburn \n## Version: Fall 2025",
+        "width": 580,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1080,
+        -900
+      ],
+      "id": "2dba0075-7d81-4f4e-bf8f-8aab4984bf49",
+      "name": "Sticky Note7"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Get Token": {
+      "main": [
+        [
+          {
+            "node": "Get Financials",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Orders": {
+      "main": [
+        [
+          {
+            "node": "Parse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Time": {
+      "main": [
+        [
+          {
+            "node": "Get Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Get Order Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Order Details": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Time1": {
+      "main": [
+        [
+          {
+            "node": "Get Token1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Token1": {
+      "main": [
+        [
+          {
+            "node": "Report ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger4": {
+      "main": [
+        [
+          {
+            "node": "Time1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Report ID": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Report Status": {
+      "main": [
+        [
+          {
+            "node": "Get Report URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Report URL": {
+      "main": [
+        [
+          {
+            "node": "Pull Data From URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pull Data From URL": {
+      "main": [
+        [
+          {
+            "node": "Parse Orders1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Orders1": {
+      "main": [
+        [
+          {
+            "node": "Append Orders to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Ads Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Ads Token": {
+      "main": [
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Get Correct Ads Account",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Get Correct Campaigns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Correct Ads Account": {
+      "main": [
+        [
+          {
+            "node": "Wait2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Correct Campaigns": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Campaigns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Keywords": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Keywords",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Bid Suggestions": {
+      "main": [
+        [
+          {
+            "node": "Wait5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Adjusted Bid": {
+      "main": [
+        [
+          {
+            "node": "Get Keywords1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait2": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait3": {
+      "main": [
+        [
+          {
+            "node": "Get Keywords",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait4": {
+      "main": [
+        [
+          {
+            "node": "Get Bid Suggestions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait5": {
+      "main": [
+        [
+          {
+            "node": "Get Adjusted Bid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Keywords1": {
+      "main": [
+        [
+          {
+            "node": "Wait6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Keywords": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Campaigns",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Keyword Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Campaigns": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Wait3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Keyword Info": {
+      "main": [
+        [
+          {
+            "node": "Wait4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait6": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Keywords",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Financials": {
+      "main": [
+        [
+          {
+            "node": "Get Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger5": {
+      "main": [
+        [
+          {
+            "node": "Get Token2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Token2": {
+      "main": [
+        [
+          {
+            "node": "Get Orders1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Orders1": {
+      "main": [
+        [
+          {
+            "node": "Split into Objects",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split into Objects": {
+      "main": [
+        [
+          {
+            "node": "Filter for Solicitation Ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter for Solicitation Ready": {
+      "main": [
+        [
+          {
+            "node": "Add Valid Orders1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Next Token": {
+      "main": [
+        [
+          {
+            "node": "Set Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split into Objects1": {
+      "main": [
+        [
+          {
+            "node": "Filter for Solicitation Ready1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter for Solicitation Ready1": {
+      "main": [
+        [
+          {
+            "node": "Add Valid Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Orders2": {
+      "main": [
+        [
+          {
+            "node": "Split into Objects1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Token": {
+      "main": [
+        [
+          {
+            "node": "Get Orders2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If There's Another Page": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Destroy Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get New Token": {
+      "main": [
+        [
+          {
+            "node": "Set Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Valid Orders": {
+      "main": [
+        [
+          {
+            "node": "If There's Another Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Valid Orders1": {
+      "main": [
+        [
+          {
+            "node": "Get Next Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Report Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Destroy Input": {
+      "main": [
+        [
+          {
+            "node": "Get New Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [
+          {
+            "node": "Clear sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger6": {
+      "main": [
+        [
+          {
+            "node": "Get Token3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Token3": {
+      "main": [
+        [
+          {
+            "node": "Destroy Input1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Destroy Input1": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Orders4": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Set Solicitation Path",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Orders5": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Solicitation Path": {
+      "main": [
+        [
+          {
+            "node": "Wait8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait7": {
+      "main": [
+        [
+          {
+            "node": "Get Orders4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait8": {
+      "main": [
+        [
+          {
+            "node": "Get Orders5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger7": {
+      "main": [
+        [
+          {
+            "node": "Get Token4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Token4": {
+      "main": [
+        [
+          {
+            "node": "Update Price",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger8": {
+      "main": [
+        [
+          {
+            "node": "Get Token5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Token5": {
+      "main": [
+        [
+          {
+            "node": "Get Listing Attributes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger9": {
+      "main": [
+        [
+          {
+            "node": "Get Token6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Token6": {
+      "main": [
+        [
+          {
+            "node": "Get Inventory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Inventory": {
+      "main": [
+        [
+          {
+            "node": "If less than 500",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If less than 500": {
+      "main": [
+        [
+          {
+            "node": "Log Inventory1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Inventory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Inventory1": {
+      "main": [
+        [
+          {
+            "node": "Email Restock Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "c9c7fd66-7df6-474d-8b53-78c2ee05b081",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "8337dd42d2dbf5575f0094a20a9bf5a3c8da69b0e6cb4a20afe8ce60c6079453"
+  },
+  "id": "Bj7PbqiHatH9tu62",
+  "tags": []
+}
