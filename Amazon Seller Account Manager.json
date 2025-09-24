@@ -897,7 +897,7 @@
     },
     {
       "parameters": {
-        "jsCode": "//Filter items and return only correct ads account\nconst filteredItems = $input.all().filter(item => \n  item.json.name === \"New Campaign - 9/16/2025 16:05:42.858\" ||\n  item.json.name === \"Clean Campaign\" \n);\n\nreturn filteredItems;"
+        "jsCode": "//Filter items and return only correct ads account\nconst filteredItems = $input.all().filter(item => \n  item.json.name === \"New Campaign - 9/16/2025 16:05:42.858\" \n // || item.json.name === \"Clean Campaign\" \n);\n\nreturn filteredItems;"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1047,7 +1047,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const keywords = $items(\"Get Keywords\").map(item => item.json);\nconst recs = $json.bidRecommendations.flatMap(r => r.bidRecommendationsForTargetingExpressions);\n\nconst updates = [];\n\nfor (const rec of recs) {\n  const keywordText = rec.targetingExpression.value;\n  const suggestedBid2 = rec.bidValues[2]?.suggestedBid;\n\n  const kw = keywords.find(k => k.keywordText.toLowerCase() === keywordText.toLowerCase());\n  if (kw && suggestedBid2) {\n    updates.push({\n      keywordId: kw.keywordId,\n      bid: +(suggestedBid2 + 0.30).toFixed(2)\n    });\n  }\n}\n\nreturn updates;\n"
+        "jsCode": "const keywords = $items(\"Get Keywords\").map(item => item.json);\nconst recs = $json.bidRecommendations.flatMap(r => r.bidRecommendationsForTargetingExpressions);\n\nconst updates = [];\n\nfor (const rec of recs) {\n  const keywordText = rec.targetingExpression.value;\n  const suggestedBid2 = rec.bidValues[2]?.suggestedBid;\n\n  const kw = keywords.find(k => k.keywordText.toLowerCase() === keywordText.toLowerCase());\n  if (kw && suggestedBid2) {\n    updates.push({\n      keywordId: kw.keywordId,\n      bid: +(suggestedBid2 + 0.10).toFixed(2)\n    });\n  }\n}\n\nreturn updates;\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1160,7 +1160,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const keywords = $node[\"Get Keywords\"].json;\nconst keywordArray = Array.isArray(keywords) ? keywords : [keywords];\n\n// Group keywords by ad group\nconst keywordsByAdGroup = {};\nkeywordArray.forEach(keyword => {\n  const adGroupId = keyword.adGroupId.toString();\n  if (!keywordsByAdGroup[adGroupId]) {\n    keywordsByAdGroup[adGroupId] = {\n      adGroupId: adGroupId,\n      campaignId: keyword.campaignId.toString(),\n      keywords: []\n    };\n  }\n  keywordsByAdGroup[adGroupId].keywords.push(keyword);\n});\n\n// Create V3 API requests for each ad group in the exact format Amazon expects\nconst requests = Object.values(keywordsByAdGroup).map(adGroup => {\n  \n  // Build targeting expressions array\n  const targetingExpressions = adGroup.keywords.map(keyword => {\n    let matchType = 'KEYWORD_BROAD_MATCH'; // default\n    \n    switch(keyword.matchType?.toLowerCase()) {\n      case 'exact':\n        matchType = 'KEYWORD_EXACT_MATCH';\n        break;\n      case 'phrase':\n        matchType = 'KEYWORD_PHRASE_MATCH';\n        break;\n      case 'broad':\n      default:\n        matchType = 'KEYWORD_BROAD_MATCH';\n        break;\n    }\n    \n    return {\n      type: matchType,\n      value: keyword.keywordText\n    };\n  });\n  \n  // Return exact format Amazon expects\n  return {\n    json: {\n      recommendationType: \"BIDS_FOR_EXISTING_AD_GROUP\",\n      targetingExpressions: targetingExpressions.slice(0, 100), // Max 100 per request\n      campaignId: adGroup.campaignId,\n      adGroupId: adGroup.adGroupId\n    }\n  };\n});\n\nconsole.log(`Created ${requests.length} V3 bid recommendation requests`);\nconsole.log('Sample request format:', JSON.stringify(requests[0]?.json, null, 2));\n\nreturn requests;"
+        "jsCode": "const keywords = $node[\"Loop Over Keywords\"].json;\nconst keywordArray = Array.isArray(keywords) ? keywords : [keywords];\n\n// Group keywords by ad group\nconst keywordsByAdGroup = {};\nkeywordArray.forEach(keyword => {\n  const adGroupId = keyword.adGroupId.toString();\n  if (!keywordsByAdGroup[adGroupId]) {\n    keywordsByAdGroup[adGroupId] = {\n      adGroupId: adGroupId,\n      campaignId: keyword.campaignId.toString(),\n      keywords: []\n    };\n  }\n  keywordsByAdGroup[adGroupId].keywords.push(keyword);\n});\n\n// Create V3 API requests for each ad group in the exact format Amazon expects\nconst requests = Object.values(keywordsByAdGroup).map(adGroup => {\n  \n  // Build targeting expressions array\n  const targetingExpressions = adGroup.keywords.map(keyword => {\n    let matchType = 'KEYWORD_BROAD_MATCH'; // default\n    \n    switch(keyword.matchType?.toLowerCase()) {\n      case 'exact':\n        matchType = 'KEYWORD_EXACT_MATCH';\n        break;\n      case 'phrase':\n        matchType = 'KEYWORD_PHRASE_MATCH';\n        break;\n      case 'broad':\n      default:\n        matchType = 'KEYWORD_BROAD_MATCH';\n        break;\n    }\n    \n    return {\n      type: matchType,\n      value: keyword.keywordText\n    };\n  });\n  \n  // Return exact format Amazon expects\n  return {\n    json: {\n      recommendationType: \"BIDS_FOR_EXISTING_AD_GROUP\",\n      targetingExpressions: targetingExpressions.slice(0, 100), // Max 100 per request\n      campaignId: adGroup.campaignId,\n      adGroupId: adGroup.adGroupId\n    }\n  };\n});\n\nconsole.log(`Created ${requests.length} V3 bid recommendation requests`);\nconsole.log('Sample request format:', JSON.stringify(requests[0]?.json, null, 2));\n\nreturn requests;"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -4010,7 +4010,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "c9c7fd66-7df6-474d-8b53-78c2ee05b081",
+  "versionId": "3a7d6a93-97af-42fc-b308-bb5bd877d17b",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "8337dd42d2dbf5575f0094a20a9bf5a3c8da69b0e6cb4a20afe8ce60c6079453"
